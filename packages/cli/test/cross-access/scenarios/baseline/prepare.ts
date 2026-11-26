@@ -1,5 +1,5 @@
 // Cross-access scenarios of baseline.prepare (SR-242), in addition to the default one (cross-access.test.ts),
-// on fixtures/SR-061/export: two warnings, „Release 1“ without stored selection, the variant Coast (c1).
+// on fixtures/SR-061/export: three warnings (one about a type without acceptance criteria, SR-230 AK5), „Release 1“ without stored selection, the variant Coast (c1).
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { BaselinePrepareOutput } from "@reqseq/core";
@@ -24,7 +24,7 @@ scenariosOf("baseline.prepare", [
     expect: "output",
     check: (results) => {
       const out = coreOutput(results);
-      expect([out.answer.startsWith("The check found 0 errors and 2 warnings;"), out.wholeWorkspace]).toEqual(
+      expect([out.answer.startsWith("The check found 0 errors and 3 warnings;"), out.wholeWorkspace]).toEqual(
         [true, true],
       );
     },

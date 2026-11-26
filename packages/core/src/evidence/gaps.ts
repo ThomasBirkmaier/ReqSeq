@@ -1,5 +1,6 @@
-// The gaps of verification a full workspace check reports (SR-230 AK1, AK2), at the workspace file and
-// only when the check is not restricted (SR-092; `workspace.check` leaves them out there):
+// The gaps of verification a full workspace check reports (SR-230 AK1, AK2, AK5), at the workspace file
+// (rules 1 to 3) or the metamodel file (rule 4), and only when the check is not restricted (SR-092;
+// `workspace.check` leaves them out there):
 //
 // 1. `evidence.no-location` (warning, AK1): the workspace file names no evidence location (`evidence`
 //    absent or empty) while the store holds at least one requirement (a type with the meaning
@@ -23,14 +24,24 @@
 //    them all, up to the largest page (5,000); `total` gives the number beyond that. Like the steps of the
 //    baseline commands it names no workspace: it runs in the one checked.
 //
-// While the metamodel is not valid neither is reported: requirements are not known then, and every state
+// 4. `evidence.no-criteria-property` (warning, AK5): one per type with the meaning `requirement`, own or
+//    inherited, none of whose own or inherited properties is the property with the meaning
+//    `acceptance-criteria`, while at least one element of exactly that type has a status the metamodel
+//    does not mark invalid (elements of a type that extends it do not count for it). Evidence records of its
+//    requirements count for the whole requirement, not per criterion (SR-031 AK7). At the metamodel file
+//    that defines the type, on its line, beside rules 1 to 3. Whether the property holds a list of texts
+//    does not matter: a type that has it gets no warning, also when the metamodel warns about its kind.
+//
+// While the metamodel is not valid none is reported: requirements are not known then, and every state
 // that checks against the metamodel is empty (`workspace.check`). Cost (SR-020 AK1, N-036): one pass over
 // the elements, one evaluation per counted requirement (memoised), at most one batch of current versions.
 import type { Problem } from "../catalog.js";
+import { fileProblem } from "../files/index.js";
 import type { NextStep } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { propertyWithMeaning, typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore } from "../model/index.js";
+import { invalidStatuses } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { View } from "../variants/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
@@ -157,9 +168,48 @@ const openGaps = async (
   };
 };
 
+/** The remedy of rule 4: add the property that has the meaning, or give a property the meaning first. */
+const criteriaRemedy = (criteriaKey: string | undefined): string =>
+  criteriaKey === undefined
+    ? "give the property of its acceptance criteria that meaning, kind text and many, and add it to the type"
+    : `add property ${criteriaKey}, which has that meaning, to the type`;
+
+/** Rule 4: a warning per requirement type without the property of the acceptance criteria that has elements. */
+const noCriteriaPropertyProblems = (metamodel: Metamodel, store: ElementStore): Problem[] => {
+  const criteriaKey = propertyWithMeaning(metamodel, "acceptance-criteria")?.key;
+  const without = typesWithMeaning(metamodel, "requirement").filter(
+    (type) => criteriaKey === undefined || !type.properties.includes(criteriaKey),
+  );
+  if (without.length === 0) {
+    return [];
+  }
+  const invalid = invalidStatuses(metamodel);
+  const used = new Set<string>();
+  for (const element of store.elements) {
+    if (!invalid.has(String(element.data["status"]))) {
+      used.add(element.type);
+    }
+  }
+  const shown = new Set(without.filter((type) => used.has(type.key)).map((type) => type.key));
+  // In the order of the types; a valid metamodel has a place for each of them.
+  return [...metamodel.typePlaces]
+    .filter(([key]) => shown.has(key))
+    .map(([key, place]) => ({
+      ...fileProblem(
+        "evidence.no-criteria-property",
+        place.file,
+        `Type ${key} has no property with the meaning acceptance-criteria, so the evidence records of its requirements count for the whole requirement and not per acceptance criterion; the type needs a property with that meaning: ${criteriaRemedy(criteriaKey)}`,
+        place.line,
+      ),
+      severity: "warning",
+      repository: metamodel.repository,
+    }));
+};
+
 /**
  * The gaps of verification of a full workspace check (see the file comment): the warning of rule 1, or
- * the info of rule 2 with its step, or none; none in a restricted check and while the metamodel is not valid.
+ * the info of rule 2 with its step, or none, and the warnings of rule 4; none in a restricted check and
+ * while the metamodel is not valid.
  */
 export const verificationGaps = async (
   workspace: Workspace,
@@ -175,7 +225,10 @@ export const verificationGaps = async (
   if (restricted || !metamodel.valid) {
     return NONE;
   }
-  return (layout.file.evidence ?? []).length === 0
-    ? noLocationProblems(layout, metamodel, store)
-    : openGaps(workspace, metamodel, store);
+  const gaps =
+    (layout.file.evidence ?? []).length === 0
+      ? noLocationProblems(layout, metamodel, store)
+      : await openGaps(workspace, metamodel, store);
+  const criteria = noCriteriaPropertyProblems(metamodel, store);
+  return criteria.length === 0 ? gaps : { ...gaps, problems: [...gaps.problems, ...criteria] };
 };

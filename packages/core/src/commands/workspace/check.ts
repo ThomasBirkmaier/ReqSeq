@@ -1,5 +1,5 @@
 // workspace.check (SR-019; aggregates SR-008, SR-015, SR-016, SR-022 AK6, SR-028, SR-040, SR-072,
-// SR-085, SR-086, SR-088, SR-089, SR-090 and SR-230 AK1, AK2): every finding of the whole workspace against the metamodel, as
+// SR-085, SR-086, SR-088, SR-089, SR-090 and SR-230 AK1, AK2, AK5): every finding of the whole workspace against the metamodel, as
 // `problems`, and `ok`, from which the CLI takes its exit code (ADR-0009). Each finding comes from
 // the whole-workspace state of its block, which is kept until the element store or the metamodel is
 // reset, so a second check of an unchanged workspace reads no file again, except the workspace file
@@ -45,9 +45,10 @@
 //   These problems come with those of the metamodel and are always kept.
 // - Folders a running watcher cannot watch (`workspace.not-watched`) are left to `workspace.status`:
 //   they are about the running process, not about the files.
-// - The gaps of verification (SR-230 AK1, AK2, `evidence/gaps.ts`): no evidence location while a
+// - The gaps of verification (SR-230 AK1, AK2, AK5, `evidence/gaps.ts`): no evidence location while a
 //   requirement exists (a warning), else the count of the requirements with method test whose status
-//   is open in the core (one info); computed per call after SR-103, only in a full check. The info gives only
+//   is open in the core (one info), and a warning at the metamodel file per requirement type with elements
+//   and without the property of the acceptance criteria; computed per call after SR-103, only in a full check. The info gives only
 //   the number; the `element.list` call that lists them is the output's `next` (SR-226), there only while
 //   `problems` shows the info, so a severity selection that hides it (SR-019 AK5) drops the step too.
 // - The skill file (SR-229 AK10, `tool/guide/skill-check.ts`), per place of D-079: ReqSeq's own skill file with an
@@ -219,7 +220,7 @@ export default defineCommand({
       }
     }
     // Asked on every call: the criteria of records of an older version (SR-028 AK5, of Git) and SR-103.
-    // SR-230 AK1, AK2: only in a full check (`restricted`), at the workspace file (`evidence/gaps.ts`).
+    // SR-230 AK1, AK2, AK5: only in a full check (`restricted`), at the workspace or metamodel file (`evidence/gaps.ts`).
     const gaps = await verificationGaps(ctx.workspace, {
       layout,
       metamodel,

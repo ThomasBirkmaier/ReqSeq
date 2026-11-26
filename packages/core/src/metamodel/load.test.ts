@@ -777,6 +777,7 @@ describe("loadMetamodel", () => {
       relations: [],
       statuses: [],
       effectiveTypes: [],
+      typePlaces: new Map(),
       meanings: Object.fromEntries(Object.keys(MEANINGS).map((m) => [m, []])),
       valid: false,
       problems: [

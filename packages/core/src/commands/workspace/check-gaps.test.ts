@@ -1,7 +1,8 @@
-// The gaps of verification of workspace.check (SR-230 AK1, AK2, `evidence/gaps.ts`): no evidence location
-// while a requirement exists (a warning), else one info with the number of requirements with method test
-// whose verification status is open in the core, and as the output's next step (SR-226) the `element.list`
-// call that lists exactly them.
+// The gaps of verification of workspace.check (SR-230 AK1, AK2, AK5, `evidence/gaps.ts`): no evidence
+// location while a requirement exists (a warning), else one info with the number of requirements with method
+// test whose verification status is open in the core, and as the output's next step (SR-226) the
+// `element.list` call that lists exactly them; and a warning per requirement type with elements and without
+// the property of the acceptance criteria.
 // fixtures/SR-126/matrix (its README lists every element and its status) has an evidence location; in the
 // core b04 (skipped test) and b06 (no evidence) are open, b10 is obsolete. Cross-access:
 // packages/cli/test/cross-access/scenarios/workspace/check.ts.
@@ -269,5 +270,165 @@ describe("workspace.check with requirements whose verification status is open (S
     const out = await check(workspace);
     expect(gaps(out)).toEqual([]);
     expect(out.next).toBeUndefined();
+  });
+});
+
+describe("workspace.check with a requirement type without acceptance criteria (SR-230 AK5)", () => {
+  const CRITERIA = "evidence.no-criteria-property";
+  const criteriaGaps = (out: Output): Problem[] => out.problems.filter((p) => p.code === CRITERIA);
+
+  /**
+   * requirement (meaning requirement, no criteria), checked-requirement (extends it, with criteria),
+   * plain-requirement (extends it, no property of its own), and in a second file retired-requirement
+   * (extends it, no criteria); need has no criteria and is no requirement.
+   */
+  const MODEL = [
+    "reqseq-metamodel: 1",
+    "types:",
+    "  - { key: need, name: Need, prefix: N, meaning: need, properties: [title] }",
+    "  - key: requirement",
+    "    name: Requirement",
+    "    prefix: RQ",
+    "    meaning: requirement",
+    "    properties: [title]",
+    "  - { key: checked-requirement, name: Checked, prefix: CR, extends: requirement, properties: [criteria] }",
+    "  - { key: plain-requirement, name: Plain, prefix: PR, extends: requirement }",
+    "properties:",
+    "  - { key: title, name: Title, kind: text, meaning: title }",
+    "  - { key: criteria, name: Acceptance Criteria, kind: text, many: true, meaning: acceptance-criteria }",
+    "statuses:",
+    "  - { key: draft, name: Draft, initial: true }",
+    "  - { key: obsolete, name: Obsolete, invalid: true }",
+    "",
+  ].join("\n");
+  const MORE = [
+    "reqseq-metamodel: 1",
+    "types:",
+    "  - key: retired-requirement",
+    "    name: Retired",
+    "    prefix: RR",
+    "    extends: requirement",
+    "    properties: [title]",
+    "",
+  ].join("\n");
+
+  /** An element file of `type` with the ID tail ending in `n` and `status`. */
+  const element = (prefix: string, type: string, n: number, status = "draft"): [string, string] => {
+    const tail = `00000000023${String(n)}`;
+    return [
+      `requirements/${prefix}-${tail}.md`,
+      `---\nid: 5c0e1d2a-0230-4230-8230-${tail}\ntype: ${type}\nstatus: ${status}\ntitle: Element ${String(n)}\n---\n`,
+    ];
+  };
+  const ELEMENTS = [
+    element("RQ", "requirement", 1),
+    element("CR", "checked-requirement", 2),
+    element("PR", "plain-requirement", 3),
+    element("RR", "retired-requirement", 4, "obsolete"),
+    element("N", "need", 5),
+  ];
+
+  const workspaceOf = (
+    files: Readonly<Record<string, string>>,
+    elements: readonly [string, string][] = ELEMENTS,
+    more: Partial<FixtureOptions> = {},
+  ): Promise<Workspace> =>
+    open({
+      files: {
+        "reqseq-workspace.yaml": NO_LOCATION,
+        "metamodel/model.yaml": MODEL,
+        "metamodel/more.yaml": MORE,
+        ...Object.fromEntries(elements),
+        ...files,
+      },
+      ...more,
+    });
+
+  const warning = (type: string, line: number, remedy: string): Problem => ({
+    code: CRITERIA,
+    severity: "warning",
+    file: "metamodel/model.yaml",
+    line,
+    repository: "system",
+    message: `Type ${type} has no property with the meaning acceptance-criteria, so the evidence records of its requirements count for the whole requirement and not per acceptance criterion; the type needs a property with that meaning: ${remedy}`,
+  });
+  const ADD = "add property criteria, which has that meaning, to the type";
+  /** The type keys of the warnings, in their order. */
+  const typesOf = (out: Output): (string | undefined)[] =>
+    criteriaGaps(out).map((p) => p.message.split(" ")[1]);
+
+  it("[SR-230/AK-rhtg] warns once per requirement type without the property, at the metamodel file that defines it", async () => {
+    const workspace = await workspaceOf({});
+    const out = await check(workspace);
+    // requirement and plain-requirement (meaning inherited); not checked-requirement (its own property),
+    // retired-requirement (only an invalid status) or need (no requirement).
+    expect(criteriaGaps(out)).toEqual([
+      warning("requirement", 4, ADD),
+      warning("plain-requirement", 10, ADD),
+    ]);
+    expect(out.ok).toBe(true);
+    expect((await check(workspace, { failOn: "warning" })).ok).toBe(false);
+  });
+
+  it("[SR-230/AK-rhtg] counts only elements of exactly the type, not of a type that extends it", async () => {
+    expect(typesOf(await check(await workspaceOf({}, [element("PR", "plain-requirement", 3)])))).toEqual([
+      "plain-requirement",
+    ]);
+  });
+
+  it("[SR-230/AK-rhtg] warns at the file of a type in another metamodel file, also next to an evidence location", async () => {
+    const out = await check(
+      await workspaceOf(
+        { "reqseq-workspace.yaml": `${NO_LOCATION}evidence:\n  - { repository: system, path: evidence }\n` },
+        [element("RR", "retired-requirement", 4)],
+      ),
+    );
+    expect(criteriaGaps(out)).toEqual([
+      { ...warning("retired-requirement", 3, ADD), file: "metamodel/more.yaml" },
+    ]);
+  });
+
+  it("[SR-230/AK-rhtg] says to give a property the meaning when no property has it", async () => {
+    const out = await check(
+      await workspaceOf({ "metamodel/model.yaml": MODEL.replace(", meaning: acceptance-criteria", "") }),
+    );
+    const give =
+      "give the property of its acceptance criteria that meaning, kind text and many, and add it to the type";
+    expect(criteriaGaps(out)).toEqual([
+      warning("requirement", 4, give),
+      warning("checked-requirement", 9, give),
+      warning("plain-requirement", 10, give),
+    ]);
+  });
+
+  it("[SR-230/AK-rhtg] never warns for a type that has the property, also when the check reports another problem about it", async () => {
+    const out = await check(
+      await workspaceOf({ "metamodel/model.yaml": MODEL.replace("kind: text, many: true", "kind: text") }),
+    );
+    expect(
+      out.problems.some((p) => p.message.startsWith("Property criteria has the meaning acceptance-criteria")),
+    ).toBe(true);
+    expect(typesOf(out)).toEqual(["requirement", "plain-requirement"]);
+  });
+
+  it("[SR-230/AK-rhtg] leaves the warning out of a check restricted to changed elements (SR-092)", async () => {
+    const workspace = await workspaceOf({}, ELEMENTS, { git: true });
+    expect(typesOf(await check(workspace))).toHaveLength(2);
+    expect(
+      criteriaGaps(await check(workspace, { changedFiles: ["requirements/RQ-000000000231.md"] })),
+    ).toEqual([]);
+    expect(criteriaGaps(await check(workspace, { changedSince: "HEAD" }))).toEqual([]);
+  });
+
+  it("[SR-230/AK-rhtg] leaves the warning out while the metamodel breaks its rules or cannot be read (SR-011 AK3, AK4)", async () => {
+    for (const files of [
+      { "metamodel/more.yaml": MORE.replace("extends: requirement", "extends: missing") },
+      { "metamodel/more.yaml": "types: [\n" },
+      { "reqseq-workspace.yaml": NO_LOCATION.replace("path: metamodel", "path: elsewhere") },
+    ]) {
+      const out = await check(await workspaceOf(files));
+      expect(out.problems.some((p) => p.severity === "error")).toBe(true);
+      expect(criteriaGaps(out)).toEqual([]);
+    }
   });
 });

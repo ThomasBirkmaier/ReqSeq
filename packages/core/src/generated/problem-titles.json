@@ -61,6 +61,7 @@
     "evidence.outside-location": "Enriched file in no evidence location",
     "evidence.no-location": "No evidence location",
     "evidence.open-requirements": "Open verification status",
+    "evidence.no-criteria-property": "No acceptance criteria property",
     "baseline.invalid": "Invalid baseline",
     "baseline.repository-commit-differs": "Repository at another commit",
     "filter.invalid": "Invalid saved filter",

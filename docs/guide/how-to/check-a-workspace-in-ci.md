@@ -100,7 +100,7 @@ The status counts the newest record of the current version, so a passed test of 
 
 ### Gaps of verification
 
-Only a full check reports a gap, at the workspace file. Without an evidence location, which `workspace init` writes, no test result counts, and a warning names the entry to add.
+Only a full check reports a gap. Without an evidence location, which `workspace init` writes, no test result counts, and a warning at the workspace file names the entry.
 
 With one, an info counts the requirements whose verification status is `open` in the core, except those in a status the metamodel marks invalid and those with a verification method other than test. The call under `next:` lists them; `--fail-on info` fails the step while any is left:
 
@@ -141,6 +141,8 @@ elements:
   SR-9d35ce  draft  Show the wind speed
 total: 1
 ```
+
+A type with the meaning `requirement`, an element of exactly that type in a valid status and no property with the meaning `acceptance-criteria` gets a warning at its metamodel file.
 
 ## API
 

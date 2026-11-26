@@ -56,7 +56,30 @@ const withEvidenceLocation = (name: string): Record<string, string> => {
 };
 
 /**
- * Fixture `name` with an evidence location (`withEvidenceLocation`); the requirement files `inspected` get
+ * The metamodel file `metamodel/standard-model.yaml` of fixture `name`, a copy of an older standard model,
+ * with a property with the meaning acceptance-criteria that no element holds, on the types that list
+ * `acceptance-criteria`: the tests here are about other findings, so such a workspace has no
+ * `evidence.no-criteria-property` warning (SR-230 AK5, `check-gaps.test.ts`). None for another metamodel:
+ * SR-019/findings and SR-085/value-kinds keep that warning, and the answers count it.
+ */
+const withCriteriaProperty = (name: string): Record<string, string> => {
+  const file = path.join(defaultFixturesDir, name, "metamodel/standard-model.yaml");
+  const text = existsSync(file) ? readFileSync(file, "utf8") : "";
+  return text.includes("        acceptance-criteria,\n") && !text.includes("meaning: acceptance-criteria")
+    ? {
+        "metamodel/standard-model.yaml": text
+          .replaceAll("        acceptance-criteria,\n", "        acceptance-criteria,\n        criteria,\n")
+          .replace(
+            "\nproperties:\n",
+            "\nproperties:\n  - { key: criteria, name: Criteria, kind: text, many: true, meaning: acceptance-criteria }\n",
+          ),
+      }
+    : {};
+};
+
+/**
+ * Fixture `name` with an evidence location (`withEvidenceLocation`) and the property of the acceptance
+ * criteria (`withCriteriaProperty`); the requirement files `inspected` get
  * the verification method inspection, which counts to no version, so they are no open requirement of
  * SR-230 AK2 either and the workspace can have no finding at all.
  */
@@ -65,7 +88,7 @@ const fixture = async (
   git = false,
   inspected: readonly string[] = [],
 ): Promise<FixtureWorkspace> => {
-  const files = withEvidenceLocation(name);
+  const files = { ...withEvidenceLocation(name), ...withCriteriaProperty(name) };
   for (const file of inspected) {
     files[file] = readFileSync(path.join(defaultFixturesDir, name, file), "utf8").replace(
       "\nrequirement-type: functional\n",
@@ -186,7 +209,7 @@ describe("reqseq workspace check (SR-019)", () => {
     ]);
     const lines = human.stdout.split("\n");
     expect(lines.slice(0, 3)).toEqual([
-      "Checked 13 elements and found 5 errors, 6 warnings and 1 info.",
+      "Checked 13 elements and found 5 errors, 7 warnings and 1 info.",
       "ok: false",
       "checkedElements: 13",
     ]);
@@ -200,7 +223,10 @@ describe("reqseq workspace check (SR-019)", () => {
         /^error {2}file\.conflict-markers {2}.* {2}system:requirements\/SR-b00000000007\.md:5$/,
       ),
     );
-    expect(lines.filter((line) => /^(error|warning) {2}/.test(line))).toHaveLength(output.problems.length);
+    // `output` leaves out the gaps of verification, here the type without acceptance criteria (SR-230 AK5).
+    expect(
+      lines.filter((line) => /^(error|warning) {2}(?!evidence\.no-criteria-property)/.test(line)),
+    ).toHaveLength(output.problems.length);
   });
 
   it("[SR-019/AK-pt9j] reports a relation whose target was removed and ends with exit code 1 (SR-089)", async () => {
@@ -251,18 +277,18 @@ describe("reqseq workspace check (SR-019)", () => {
     expect(result.code).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
       // The answer counts the findings left out as well (SR-224 AK1).
-      answer: "Checked 4 elements and found 5 warnings and 1 info.",
+      answer: "Checked 4 elements and found 6 warnings and 1 info.",
       ok: false,
       problems: [],
       // The info is the count of open requirements (SR-230 AK2).
-      hidden: { below: "error", warning: 5, info: 1 },
+      hidden: { below: "error", warning: 6, info: 1 },
       checkedElements: 4,
     });
     const human = await reqseq(args, ws.path("system"));
     expect(human).toEqual({
       code: 1,
       stdout:
-        "Checked 4 elements and found 5 warnings and 1 info.\nok: false\ncheckedElements: 4\nNo problems at or above error; 5 warnings and 1 info not shown.\n",
+        "Checked 4 elements and found 6 warnings and 1 info.\nok: false\ncheckedElements: 4\nNo problems at or above error; 6 warnings and 1 info not shown.\n",
       stderr: "",
     });
   });
@@ -505,7 +531,7 @@ describe("which findings fail the check: --fail-on, apart from --severity (Thoma
     const warnings = await checkBoth(cwd);
     expect([warnings.human.code, warnings.json.code, warnings.output.ok]).toEqual([0, 0, true]);
     expect(warnings.human.stdout.split("\n").slice(0, 3)).toEqual([
-      "Checked 4 elements and found 5 warnings and 1 info.",
+      "Checked 4 elements and found 6 warnings and 1 info.",
       "ok: true",
       "checkedElements: 4",
     ]);
@@ -534,18 +560,18 @@ describe("which findings fail the check: --fail-on, apart from --severity (Thoma
     expect(human).toEqual({
       code: 0,
       stdout:
-        "Checked 4 elements and found 5 warnings and 1 info.\nok: true\ncheckedElements: 4\nNo problems at or above error; 5 warnings and 1 info not shown.\n",
+        "Checked 4 elements and found 6 warnings and 1 info.\nok: true\ncheckedElements: 4\nNo problems at or above error; 6 warnings and 1 info not shown.\n",
       stderr: "",
     });
     const yaml = await reqseq(["workspace", "check", "--severity", "error", "--yaml"], ws.path("system"));
-    expect(yaml.stdout.endsWith("No problems at or above error; 5 warnings and 1 info not shown.\n")).toBe(
+    expect(yaml.stdout.endsWith("No problems at or above error; 6 warnings and 1 info not shown.\n")).toBe(
       true,
     );
     // After shown errors, the warnings left out are counted as well.
     const findings = await fixture("SR-019/findings");
     const errors = await reqseq(["workspace", "check", "--severity", "error"], findings.root);
     expect(errors.code).toBe(1);
-    expect(errors.stdout).toMatch(/\n6 warnings and 1 info below error not shown\.\n$/);
+    expect(errors.stdout).toMatch(/\n7 warnings and 1 info below error not shown\.\n$/);
   });
 
   it("[SR-072/AK-y5gr] ends with exit code 0 after a supersede with a successor, whose own relation gets no hint", async () => {

@@ -2,7 +2,7 @@
 // names the variants Linux (c1) and macOS (c2) and the core, for SR-0000a1 of `system` and SR-0000b1
 // of `supplier`, which the workspace file marks `variant-independent` (SR-173). Windows (c3) is not
 // named. The same on every access in packages/cli/test/cross-access.test.ts.
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
@@ -59,9 +59,11 @@ describe("a JUnit test case for several views (SR-093 AK5)", () => {
     const all = await list(workspace, "SR-0000a1");
     expect(all.records.map((r) => r.variant)).toEqual([undefined, LINUX, MACOS]);
     expect((await list(workspace, "SR-0000a1", "VAR-0000c3")).records).toEqual([]);
-    // Read without a finding.
+    // Read without a finding of the records (the fixture's type without acceptance criteria aside, SR-230 AK5).
     const checked = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
-    expect(checked.problems.filter((p) => p.code.startsWith("evidence."))).toEqual([]);
+    expect(withoutVerificationGaps(checked.problems).filter((p) => p.code.startsWith("evidence."))).toEqual(
+      [],
+    );
   });
 
   it("[SR-093/AK-sr3h] the record of the core of a variant-independent repository counts in every variant, also one the test case does not name", async () => {

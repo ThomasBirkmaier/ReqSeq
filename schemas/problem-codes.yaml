@@ -243,6 +243,10 @@ problems:
     title: Open verification status
     cause: Requirements whose status is not marked invalid and whose verification method is test, or that have no verification method, have the verification status open in the core. Without a property with the meaning `verification-method` every such requirement counts. One info gives their number; the check names the `element.list` call that lists them as its next step, as long as it shows the info. A full workspace check reports it while the metamodel is valid and an evidence location is named; a check restricted to changed elements does not.
     remedy: Run the next step of the check to see them, then write their tests and record the results in an evidence location. With `--fail-on info` the check fails while any are left.
+  evidence.no-criteria-property:
+    title: No acceptance criteria property
+    cause: A type with the meaning `requirement` has no property with the meaning `acceptance-criteria`, neither its own nor an inherited one, while the workspace has an element of exactly that type whose status is not marked invalid. The evidence records of its requirements count for the whole requirement, not per acceptance criterion. A full workspace check reports it once per such type, at the metamodel file that defines the type, while the metamodel is valid; a check restricted to changed elements does not.
+    remedy: Give the property that holds the acceptance criteria the meaning `acceptance-criteria`, kind text and many, and add it to the type, or add the property that already has this meaning to the type. Then give its acceptance criteria criterion keys with `element.assignCriterionKeys`.
   baseline.invalid:
     title: Invalid baseline
     cause: A baseline file cannot be read or does not match its format, for example an element copy or a repository listed twice.
