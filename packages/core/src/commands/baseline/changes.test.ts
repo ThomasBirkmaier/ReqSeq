@@ -8,6 +8,7 @@ import { rm } from "node:fs/promises";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandName, InvokedOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
+import { pageFor } from "../../evidence/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 
@@ -77,6 +78,34 @@ const twoBaselines = async (): Promise<FixtureWorkspace> => {
   return ws;
 };
 
+/** „Counts“ over the package Display: b1 unchanged, b2 changed, b3 superseded, b4 removed, ff missing. */
+const COUNTS =
+  "reqseq-baseline: 1\nname: Counts\ndate: 2026-11-20T09:00:00Z\n" +
+  "repositories:\n  - { name: system, commit: 61aa061aa061aa061aa061aa061aa061aa061aa0 }\n" +
+  `selection: { package: ${ID}d1 }\n` +
+  "elements:\n" +
+  `  - { id: ${ID}b1, version: n1:697a2ad17ed49170 }\n` +
+  `  - { id: ${ID}b2, version: n1:0000000000000000 }\n` +
+  `  - { id: ${ID}b4, version: n1:1e68aa41d13d05b1 }\n` +
+  `  - { id: ${ID}b3, version: n1:4b17a5494b8e80e5 }\n` +
+  `  - { id: ${ID}ff, version: n1:2222222222222222 }\n`;
+
+/** The List elements step of AK8 for `state` of the baseline `name`, with `page`. */
+const listStep = (name: string, state: string, page: object = {}): object => ({
+  command: "element.list",
+  input: {
+    selection: {
+      output: {
+        command: "baseline.changes",
+        input: { baseline: name },
+        count: { field: `baseline.counts.${state}` },
+      },
+    },
+    ...page,
+  },
+  open: [],
+});
+
 describe("baseline.changes", () => {
   it("[SR-241/AK-p7s5] compares with the newest baseline by date and time, else with the one given, with the numbers of baseline.get", async () => {
     const ws = await twoBaselines();
@@ -103,6 +132,100 @@ describe("baseline.changes", () => {
       input: { baseline: "r3.yaml" },
       open: ["ref"],
     });
+  });
+
+  it("[SR-241/AK-zyqj] names List elements for changed, superseded, added and removed greater than 0, in this order, for exactly their elements", async () => {
+    const ws = await fixture({
+      ...EXPORT,
+      files: {
+        "system/baselines/counts.yaml": COUNTS,
+        // In the package Display, not in the baseline: added.
+        "system/requirements/SR-0000000000b5.md":
+          `---\nid: ${ID}b5\ntype: system-requirement\nstatus: draft\ntitle: Added\n` +
+          `packages: [{ id: ${ID}d1 }]\n---\n`,
+      },
+    });
+    // Given by its file name, the step names the baseline by its name.
+    const out = await call(ws, "baseline.changes", { baseline: "counts.yaml" });
+    const counts = out.baseline?.counts;
+    expect([counts?.changed, counts?.superseded, counts?.added, counts?.removed]).toEqual([1, 1, 1, 1]);
+    expect(counts?.missing).toBeGreaterThan(0);
+    const steps = out.next.filter((step) => step.command === "element.list");
+    expect(steps).toEqual(
+      ["changed", "superseded", "added", "removed"].map((state) => listStep("Counts", state)),
+    );
+    // Each lists exactly the elements of its number, as baseline.get counts them.
+    for (const [state, step] of [
+      ["changed", steps[0]],
+      ["removed", steps[3]],
+    ] as const) {
+      const listed = await call(ws, "element.list", step?.input ?? {});
+      const counted = await call(ws, "element.list", {
+        selection: {
+          output: {
+            command: "baseline.get",
+            input: { baseline: "Counts" },
+            count: { field: `counts.${state}` },
+          },
+        },
+      });
+      expect(listed.elements?.map((e) => e.id)).toEqual(counted.elements?.map((e) => e.id));
+      expect(listed.total).toBe(1);
+    }
+  });
+
+  it("[SR-241/AK-zyqj] names List elements for no other number, and by the file name when the name is shared", async () => {
+    // Nothing changed since a baseline of now: no List elements.
+    const now = await fixture({ fixture: "SR-043/example", git: true });
+    await call(now, "baseline.create", { name: "Now", selection: {} }, ".");
+    expect((await call(now, "baseline.changes", {}, ".")).next.map((s) => s.command)).toEqual([
+      "baseline.prepare",
+    ]);
+    // Release 1 stores no selection: 1 changed and 1 missing, and no number added or removed.
+    const ws = await twoBaselines();
+    expect(
+      (await call(ws, "baseline.changes", { baseline: "Release 1" })).next.filter(
+        (s) => s.command === "element.list",
+      ),
+    ).toEqual([listStep("Release 1", "changed")]);
+    await ws.write(
+      "system/baselines/r3.yaml",
+      baseline("R2", "2026-11-09T10:00:00Z", await ws.head("system"), undefined, "n1:0000000000000000"),
+    );
+    // r3.yaml shares the name R2; its b1 is changed, b2 to b4 of Display added since.
+    const tie = await call(ws, "baseline.changes", {});
+    expect(tie.next.filter((s) => s.command === "element.list")).toEqual([
+      listStep("r3.yaml", "changed"),
+      listStep("r3.yaml", "added"),
+    ]);
+  });
+
+  it("[SR-241/AK-zyqj] names a page that holds them all, up to the first full page of the largest", async () => {
+    // 201 requirements added since a baseline of everything that held none.
+    const added = Array.from({ length: 201 }, (_, n): [string, string] => {
+      const tail = (0xd00 + n).toString(16);
+      return [
+        `system/requirements/SR-000000000${tail}.md`,
+        `---\nid: ${ID.slice(0, -1)}${tail}\ntype: system-requirement\nstatus: draft\ntitle: Added ${tail}\n---\n`,
+      ];
+    });
+    const ws = await fixture({
+      ...EXPORT,
+      files: {
+        ...Object.fromEntries(added),
+        "system/baselines/empty.yaml":
+          "reqseq-baseline: 1\nname: Empty\ndate: 2026-11-20T09:00:00Z\nselection: {}\n" +
+          "repositories:\n  - { name: system, commit: 61aa061aa061aa061aa061aa061aa061aa061aa0 }\nelements: []\n",
+      },
+    });
+    const out = await call(ws, "baseline.changes", { baseline: "Empty" });
+    const total = out.baseline?.counts.added ?? 0;
+    expect(total).toBeGreaterThan(201);
+    const [step] = out.next.filter((s) => s.command === "element.list");
+    expect(step).toEqual(listStep("Empty", "added", { limit: total }));
+    expect((await call(ws, "element.list", step?.input ?? {})).elements).toHaveLength(total);
+    // 5,001 elements: the first full page, without building them.
+    expect([pageFor(5001), pageFor(5000), pageFor(200)]).toEqual([{ limit: 5000 }, { limit: 5000 }, {}]);
   });
 
   it("[SR-241/AK-p7s5] names the view of a baseline over a variant, and the variant", async () => {
@@ -166,6 +289,7 @@ describe("baseline.changes", () => {
       { command: "hint.confirm", input: {}, open: ["hintIds"] },
       { command: "baseline.compare", input: { baseline: "Release 1" }, open: ["ref"] },
       { command: "baseline.prepare", input: {}, open: [] },
+      listStep("Release 1", "changed"),
     ]);
   });
 
@@ -197,7 +321,7 @@ describe("baseline.changes", () => {
     );
     const read = async (): Promise<string[]> =>
       (await call(ws, "baseline.changes", {})).next.map((step) => step.command);
-    expect(await read()).toEqual(["baseline.compare", "baseline.prepare"]);
+    expect(await read()).toEqual(["baseline.compare", "baseline.prepare", "element.list"]);
     await rm(ws.path("system/baselines"), { recursive: true });
     expect(await read()).toEqual(["baseline.prepare"]);
   });

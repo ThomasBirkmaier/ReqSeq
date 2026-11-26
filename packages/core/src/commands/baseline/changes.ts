@@ -11,13 +11,18 @@
 // - The next steps (AK3, AK4): Confirm hints with the hints open, when a confirmable kind (D-042) has a
 //   hint over all pages; Compare baseline with the baseline and the element open, when an element is
 //   marked changed; Prepare baseline. `invoke` leaves out a step whose write command it refuses while the
-//   workspace is read-only (SR-226).
+//   workspace is read-only (SR-226). After them List elements (AK8) for each of `changed`, `superseded`,
+//   `added` and `removed` greater than 0, in this order: the selection is the output of baseline.changes
+//   for the baseline and that number (SR-224 AK4), the baseline by its name, or by its file name when
+//   another valid baseline has the same name (`listName`), with a page that holds them all up to the
+//   largest page (`pageFor`, as SR-230 AK2).
 // - `countedElements` gives the elements of `baseline.counts.*` by baseline.get's (SR-224 AK4).
 import path from "node:path";
 import type { CommandContext, CommandInput, CommandOutput } from "../../catalog.js";
 import { CommandError, commandErrorOrThrow, defineCommand } from "../../catalog.js";
 import { foldName, newestBaselines } from "../../baselines/index.js";
 import type { BaselineSince, NextStep } from "../../generated/types.js";
+import { pageFor } from "../../evidence/index.js";
 import { CONFIRMABLE_CODES } from "../../hints/index.js";
 import { namesField } from "../../model/index.js";
 import { counted, incompleteNote, listed, problemsNote, sentence } from "../answer.js";
@@ -45,6 +50,10 @@ export const ranAs = async <T>(name: string, run: () => Promise<T>): Promise<T> 
   }
 };
 
+/** Whether another valid baseline of `list` has the name `name`, so that the name alone is ambiguous. */
+const nameShared = (list: CommandOutput<"baseline.list">, name: string): boolean =>
+  list.baselines.filter((b) => foldName(b.name) === foldName(name)).length > 1;
+
 /**
  * How baseline.get is to find the baseline of `given` (see the file comment): the given text, the name of
  * the newest baseline or its file name, or undefined without a baseline. With the problems of baseline.list.
@@ -61,8 +70,10 @@ export const baselineRef = async (
   if (newest === undefined) {
     return { ref: undefined, list };
   }
-  const shared = list.baselines.filter((b) => foldName(b.name) === foldName(newest.name)).length > 1;
-  return { ref: shared ? path.posix.basename(newest.file) : newest.name, list };
+  return {
+    ref: nameShared(list, newest.name) ? path.posix.basename(newest.file) : newest.name,
+    list,
+  };
 };
 
 /** The input of baseline.get for `ref`: only the numbers are taken, so the page is one element. */
@@ -109,6 +120,36 @@ export const selectionNote = "it stores no selection, so nothing is counted as a
 export const viewNames = (output: CommandOutput<"baseline.get">): CommandOutput<"baseline.get">["names"] =>
   output.names.filter((name) => name.id === output.view);
 
+/** The numbers List elements is named for (AK8), in this order. */
+const LISTED = ["changed", "superseded", "added", "removed"] as const;
+
+/**
+ * The List elements steps of AK8: per number of LISTED greater than 0, `element.list` of the elements
+ * baseline.changes counts for it, with the baseline by `name`.
+ */
+const listSteps = (name: string, baseline: BaselineSince): NextStep[] =>
+  LISTED.flatMap((state) => {
+    const count = baseline.counts[state] ?? 0;
+    return count === 0
+      ? []
+      : [
+          {
+            command: "element.list",
+            input: {
+              selection: {
+                output: {
+                  command,
+                  input: { baseline: name },
+                  count: { field: `baseline.counts.${state}` },
+                },
+              },
+              ...pageFor(count),
+            },
+            open: [],
+          },
+        ];
+  });
+
 /** `names` with each UUID once, the first entry kept (as baseline.prepare merges its names). */
 const uniqueNames = <T extends { readonly id: string }>(names: readonly T[]): T[] =>
   names.filter((name, i) => names.findIndex((other) => other.id === name.id) === i);
@@ -118,6 +159,7 @@ const nextSteps = (
   ref: string | undefined,
   baseline: BaselineSince | undefined,
   hints: CommandOutput<"hint.list">,
+  list: CommandOutput<"baseline.list">,
 ): NextStep[] => {
   const confirmable = hints.kinds.some(
     (kind) => kind.count > 0 && (CONFIRMABLE_CODES as readonly string[]).includes(kind.code),
@@ -128,6 +170,12 @@ const nextSteps = (
       ? [{ command: "baseline.compare", input: { baseline: ref }, open: ["ref"] }]
       : []),
     { command: "baseline.prepare", input: {}, open: [] },
+    ...(baseline === undefined
+      ? []
+      : listSteps(
+          nameShared(list, baseline.name) ? path.posix.basename(baseline.file) : baseline.name,
+          baseline,
+        )),
   ];
 };
 
@@ -148,7 +196,7 @@ const changesOf = async (
     hintKinds: hints.kinds,
     hintTotal: hints.total,
     ...(problems.length === 0 ? {} : { problems }),
-    next: nextSteps(ref, baseline, hints),
+    next: nextSteps(ref, baseline, hints, list),
     ...(incomplete ? { incomplete: true } : {}),
     ...namesField(uniqueNames([...(got === undefined ? [] : viewNames(got)), ...(hints.names ?? [])])),
   };
