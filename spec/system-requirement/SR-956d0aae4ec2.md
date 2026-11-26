@@ -1,7 +1,7 @@
 ---
 id: 9b1953ee-86c0-49c2-b014-956d0aae4ec2
 type: system-requirement
-status: draft
+status: approved
 title: Fehlendes Fassungsdatum begründen
 spec-id: SR-254
 rationale: In einem flachen Klon oder ohne Git blieb das Datum einer Fassung leer, ohne Grund; Agents in Cloud-Containern hielten das für einen Fehler. Die Hinweise auf veraltete Beziehungen nennen den Grund schon in ihrem Text (SR-004 AK6).
