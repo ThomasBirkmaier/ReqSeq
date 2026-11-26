@@ -162,18 +162,70 @@ const describeField = (field: InputField): string =>
     field.description,
     field.choices === undefined ? undefined : `one of: ${field.choices.join(", ")}`,
     field.defaultValue === undefined ? undefined : `default: ${JSON.stringify(field.defaultValue)}`,
-    field.array ? "repeatable" : undefined,
-    field.entries
-      ? `repeatable; the value as JSON when it parses (a list, number, true, null), else as text: version=1.10 is the number 1.1, give 'version="1.10"' for text; ${field.entryLists ? "a kind given again adds its targets" : "the last value of a key counts"}; keys add to --input`
-      : undefined,
-    field.textFile
-      ? "@file or - reads it from a file or standard input, as --input does; a text that is - or starts with @ only via --input"
-      : undefined,
+    field.array || field.entries ? "repeatable" : undefined,
+    // How a value is read is the same for every such option, so the help says it once (#2529, `valueRules`).
+    field.entryLists ? "a kind given again adds its targets" : undefined,
     field.nullable ? "null only via --input" : undefined,
   ]
     .filter((part) => part !== undefined)
     .join("; ")
     .replaceAll(".; ", ". ");
+
+/**
+ * What a key given again does, unless every option adds the targets of a kind given again
+ * (`entryLists`), which its own line says.
+ */
+const lastValueRule = (entries: readonly InputField[]): string | undefined => {
+  const lists = entries.filter((field) => field.entryLists).length;
+  if (lists === entries.length) {
+    return undefined;
+  }
+  return lists === 0
+    ? "A key given again keeps its last value."
+    : "A key given again keeps its last value, unless its option says otherwise.";
+};
+
+/** The rules a placeholder stands for, said once per command under its options (#2529). */
+const VALUE_RULES: readonly {
+  readonly term: string;
+  readonly applies: (field: InputField) => boolean;
+  readonly rule: (fields: readonly InputField[]) => string;
+}[] = [
+  {
+    term: "<key=value>",
+    applies: (field) => field.entries,
+    rule: (fields) =>
+      [
+        `Read as JSON when it parses (an array, number, true, null), else as text: version=1.10 is the number 1.1, give 'version="1.10"' for text.`,
+        lastValueRule(fields.filter((field) => field.entries)),
+        "The keys add to those of --input.",
+      ]
+        .filter((part) => part !== undefined)
+        .join(" "),
+  },
+  {
+    term: "<text|@file|->",
+    applies: (field) => field.textFile,
+    rule: () =>
+      "@file or - reads the text from a file or standard input, as --input does; a text that is - or starts with @ only via --input.",
+  },
+];
+
+interface ValueRule {
+  /** The placeholder of the options, `<key=value>`. */
+  readonly term: string;
+  readonly rule: string;
+}
+
+/** The section "Option values" of a command whose options use a placeholder of `VALUE_RULES`; `[]` without one. */
+const valueRules = (fields: readonly InputField[]): readonly ValueRule[] => {
+  // Only flags read `@file` and `-`; a positional value is taken as it is (`buildInput`).
+  const shown = fields.filter((field) => field.use === "flag");
+  return VALUE_RULES.filter((rule) => shown.some(rule.applies)).map((rule) => ({
+    term: rule.term,
+    rule: rule.rule(shown),
+  }));
+};
 
 const collect = (value: string, previous: unknown): string[] => [
   ...(Array.isArray(previous) ? (previous as string[]) : []),
@@ -378,7 +430,15 @@ const withOptionHints = (command: Command): void => {
   };
 };
 
-const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions): void => {
+/** The section "Option values" by command, written by `formatHelp` after the options. */
+type ValueRules = Map<Command, readonly ValueRule[]>;
+
+const addCommand = (
+  group: Command,
+  entry: CatalogEntry,
+  options: ProgramOptions,
+  rulesOf: ValueRules,
+): void => {
   const action = entry.name.slice(entry.name.indexOf(".") + 1);
   const implemented = options.runtime.commands.has(entry.name);
   const fields = inputFields(entry, options.runtime.contracts.schemas);
@@ -439,6 +499,10 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
         `print the output as JSON Lines: one line per item of ${entry.jsonLines.items}, each with ${entry.jsonLines.fields.join(", ")} first`,
       ).conflicts(["json", "yaml"]),
     );
+  }
+  const rules = valueRules(fields);
+  if (rules.length > 0) {
+    rulesOf.set(command, rules);
   }
   if (inputOnly.length > 0) {
     command.addHelpText("after", `\nOnly via --input: ${inputOnly.map((f) => f.name).join(", ")}`);
@@ -518,8 +582,22 @@ const withGetStarted = (help: string, commands: readonly CatalogEntry[]): string
   return at < 0 ? help : `${help.slice(0, at + 1)}${section.join("\n")}\n${help.slice(at)}`;
 };
 
+/**
+ * `help` with the section "Option values" after its options (#2529): how a value of each placeholder is read,
+ * said once instead of in each option. `help` as it is without `rules`.
+ */
+const withValueRules = (help: string, rules: readonly ValueRule[] | undefined, helper: Help): string => {
+  if (rules === undefined) {
+    return help;
+  }
+  const width = Math.max(...rules.map((rule) => helper.displayWidth(rule.term)));
+  const items = rules.map((rule) => helper.formatItem(rule.term, width, rule.rule, helper));
+  return `${help}\n${helper.formatItemList("Option values:", items, helper).join("\n")}`;
+};
+
 /** Build `reqseq` with one subcommand per catalog entry, `reqseq <group> <action>`. */
 export function buildProgram(options: ProgramOptions): Command {
+  const rulesOf: ValueRules = new Map();
   const program = new Command("reqseq")
     .description(
       "ReqSeq: requirements as plain files in Git. Every command of the catalog, from the command line.",
@@ -543,10 +621,12 @@ export function buildProgram(options: ProgramOptions): Command {
     // List subcommands with their own usage (`get <ref> [options]`), as their help shows it.
     .configureHelp({
       subcommandTerm: (cmd) => `${cmd.name()} ${cmd.usage()}`,
-      // Only `reqseq` itself, which has no parent, gets "Get started".
+      // Only `reqseq` itself, which has no parent, gets "Get started"; a command, its "Option values".
       formatHelp: (cmd, helper): string => {
         const help = Help.prototype.formatHelp.call(helper, cmd, helper);
-        return cmd.parent === null ? withGetStarted(help, options.runtime.contracts.commands) : help;
+        return cmd.parent === null
+          ? withGetStarted(help, options.runtime.contracts.commands)
+          : withValueRules(help, rulesOf.get(cmd), helper);
       },
     })
     .addHelpText("after", "\nOptions of a command follow it: reqseq <group> <action> --help");
@@ -558,7 +638,7 @@ export function buildProgram(options: ProgramOptions): Command {
       group = program.command(name).description(catalogGroupName(name)).usage("<action> [options]");
       groups.set(name, group);
     }
-    addCommand(group, entry, options);
+    addCommand(group, entry, options, rulesOf);
   }
   const clash = SERVER_COMMANDS.filter((name) => groups.has(name));
   if (clash.length > 0) {
