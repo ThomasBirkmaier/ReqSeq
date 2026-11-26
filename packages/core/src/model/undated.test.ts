@@ -2,20 +2,25 @@
 // the repository `system`) and fixtures/SR-061/export (Git repositories `system` and `sensor`; `release-1.yaml` lists
 // a1 and b1 at their current versions, b3 at a version no commit holds and ff, which no element file holds), and
 // `classifyUndated` for the answers of Git a fixture cannot give. The sort of SR-075 AK5: sort-version-date.test.ts.
-import { readFile, rm, unlink } from "node:fs/promises";
+import fsPromises, { mkdir, readFile, rm, utimes } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandName, InvokedOutput } from "../catalog.js";
 import type * as Reader from "../git/reader.js";
-import { changedPaths, headCommit, headFiles, openObjectReader, symbolicHead } from "../git/reader.js";
+import {
+  commitBlobs,
+  headCommit,
+  headFiles,
+  openObjectReader,
+  symbolicHead,
+  trackedChanges,
+} from "../git/reader.js";
 import type { Problem } from "../generated/types.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { elementStoreState } from "./store.js";
-import type * as Uncommitted from "./uncommitted.js";
-import { uncommittedFiles } from "./uncommitted.js";
 import { classifyUndated, undatedProblems } from "./undated.js";
 
 vi.mock("../git/reader.js", async (importOriginal) => {
@@ -25,13 +30,10 @@ vi.mock("../git/reader.js", async (importOriginal) => {
     headCommit: vi.fn(original.headCommit),
     headFiles: vi.fn(original.headFiles),
     symbolicHead: vi.fn(original.symbolicHead),
-    changedPaths: vi.fn(original.changedPaths),
+    trackedChanges: vi.fn(original.trackedChanges),
+    commitBlobs: vi.fn(original.commitBlobs),
     openObjectReader: vi.fn(original.openObjectReader),
   };
-});
-vi.mock("./uncommitted.js", async (importOriginal) => {
-  const original = await importOriginal<typeof Uncommitted>();
-  return { ...original, uncommittedFiles: vi.fn(original.uncommittedFiles) };
 });
 
 const WIND = "requirements/SR-6328cee88fb3.md";
@@ -82,7 +84,7 @@ const shallowClone = async (): Promise<FixtureWorkspace> => {
     git: true,
     files: {
       [WIND]:
-        "---\nid: e8df96ea-a168-4d90-8d65-6328cee88fb3\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed\n---\n\nThe station shows the current wind speed. ![Map](../images/map.png) ![Inner](../inner/pic.png)\n",
+        "---\nid: e8df96ea-a168-4d90-8d65-6328cee88fb3\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed\n---\n\nThe station shows the current wind speed. ![Map](../images/map.png) ![Inner](../inner/pic.png) ![Later](../images/later.png)\n",
       "images/map.png": "map",
     },
   });
@@ -209,33 +211,53 @@ describe("why a version has no date (SR-254)", () => {
     expect(await dated(clone)).toEqual({ date: null, warnings: [one] });
     // Where Git cannot tell the files, the images or the committed texts, the shallow clone is named.
     const timeout = { known: false, reason: "timeout", detail: "" } as const;
-    vi.mocked(changedPaths).mockResolvedValueOnce(timeout);
-    expect((await dated(clone)).warnings).toEqual([["version.date-unavailable", "system", SHALLOW]]);
-    vi.mocked(uncommittedFiles).mockResolvedValueOnce(timeout);
-    expect((await dated(clone)).warnings).toEqual([["version.date-unavailable", "system", SHALLOW]]);
+    // What a workspace judged is kept for its HEAD and element store: a new one asks Git again.
+    vi.mocked(trackedChanges).mockResolvedValueOnce(timeout);
+    expect((await dated(open(shallow.root))).warnings).toEqual([
+      ["version.date-unavailable", "system", SHALLOW],
+    ]);
+    expect(await dated(clone)).toEqual({ date: null, warnings: [one] });
+    vi.mocked(commitBlobs).mockResolvedValueOnce(timeout);
+    expect((await dated(open(shallow.root))).warnings).toEqual([
+      ["version.date-unavailable", "system", SHALLOW],
+    ]);
     vi.mocked(openObjectReader).mockReturnValueOnce({
       info: () => Promise.resolve(timeout),
       read: () => Promise.resolve(timeout),
       close: () => undefined,
     });
-    expect((await dated(clone, "SR-4a5b6c")).warnings).toEqual([
+    expect((await dated(open(shallow.root), "SR-4a5b6c")).warnings).toEqual([
       ["version.date-unavailable", "system", SHALLOW],
     ]);
-    // An element file gone since the workspace read it is not committed.
-    const kept = (await clone.get(elementStoreState)).elements.filter((e) => e.file === other);
-    const version = String((await call(clone, "element.get", { ref: "SR-4a5b6c" })).element.version);
-    const classify = async (): Promise<number[]> =>
+    // An element file that cannot be read now (too many open files), or an image that is no file now, tells nothing.
+    const fresh = open(shallow.root);
+    const kept = (await fresh.get(elementStoreState)).elements.filter((e) => e.file === other);
+    const version = String((await call(fresh, "element.get", { ref: "SR-4a5b6c" })).element.version);
+    const classify = async (workspace = fresh): Promise<number[]> =>
       (
         await classifyUndated(
-          clone,
+          workspace,
           kept.map((element) => ({ repository: "system", id: element.id, element, version })),
         )
       ).map((r) => r.uncommitted.length);
+    const original = fsPromises.readFile.bind(fsPromises);
+    const spy = vi
+      .spyOn(fsPromises, "readFile")
+      .mockImplementation(((file: string, ...rest: never[]) =>
+        file.endsWith("SR-1d2e3f4a5b6c.md")
+          ? Promise.reject(Object.assign(new Error("EMFILE"), { code: "EMFILE" }))
+          : original(file, ...rest)) as typeof fsPromises.readFile);
+    expect(await classify()).toEqual([0]);
+    spy.mockRestore();
+    expect(await classify()).toEqual([1]);
     // HEAD files that name another commit than git does: the diff is asked again for that of git.
     vi.mocked(headFiles).mockResolvedValueOnce({ stamp: "", shallow: true, commit: "0".repeat(40) });
-    expect(await classify()).toEqual([1]);
-    await unlink(shallow.path(other));
-    expect(await classify()).toEqual([1]);
+    expect(await classify(open(shallow.root))).toEqual([1]);
+    await rm(shallow.path("images/map.png"));
+    await mkdir(shallow.path("images/map.png"));
+    expect((await dated(open(shallow.root))).warnings).toEqual([
+      ["version.date-unavailable", "system", SHALLOW],
+    ]);
 
     // A Git repository without a commit: every current version is not committed.
     const empty = await fixture({ fixture: "SR-001/two-elements" });
@@ -270,10 +292,17 @@ describe("why a version has no date (SR-254)", () => {
     const shallow = await shallowClone();
     const text = await readFile(shallow.path(WIND), "utf8");
     await shallow.write(WIND, text.replace(/\)\n$/, ")   \n").replace(/\n/g, "\r\n"));
-    expect(await dated(open(shallow.root))).toEqual({
-      date: null,
-      warnings: [["version.date-unavailable", "system", SHALLOW]],
-    });
+    // Files only touched, as in a copied work tree: listed by the diff, the same bytes as at HEAD.
+    const later = new Date(Date.now() + 60_000);
+    await utimes(shallow.path("requirements/SR-1d2e3f4a5b6c.md"), later, later);
+    await utimes(shallow.path("images/map.png"), later, later);
+    const reason = [["version.date-unavailable", "system", SHALLOW]];
+    const clone = open(shallow.root);
+    expect(await dated(clone)).toEqual({ date: null, warnings: reason });
+    expect((await dated(clone, "SR-4a5b6c")).warnings).toEqual(reason);
+    // An embedded image HEAD does not have, on disk now: not committed, also where the workspace judged it missing.
+    await shallow.write("images/later.png", "later");
+    expect((await dated(clone)).warnings.map(([code]) => code)).toEqual(["version.uncommitted"]);
   });
 
   it("[SR-254/AK-j82g] counts the versions Git cannot date, and the elements not committed apart", async () => {

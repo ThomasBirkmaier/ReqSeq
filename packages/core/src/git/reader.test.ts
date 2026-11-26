@@ -20,6 +20,7 @@ import {
   headCommit,
   headFiles,
   symbolicHead,
+  trackedChanges,
   firstParentChanges,
   historyRange,
   openObjectReader,
@@ -218,6 +219,7 @@ describe("git reader", () => {
       "openObjectReader",
       "resolveCommit",
       "symbolicHead",
+      "trackedChanges",
       "trackedFile",
       "workTreeOf",
     ]);
@@ -1194,6 +1196,10 @@ describe("commits and changes since a commit (SR-092)", () => {
     expect(since.known ? [...since.paths].sort() : since).toEqual(
       [".gitignore", "a.md", "b.md", first, "sub/d.md"].sort(),
     );
+    // Without the untracked files: the tracked ones only.
+    const tracked = await trackedChanges(folder, first);
+    expect(tracked.known ? [...tracked.paths].sort() : tracked).toEqual(["a.md", "b.md"]);
+    await expect(trackedChanges(folder, "HEAD")).rejects.toThrow(/needs a commit ID/);
     // Below a subfolder only, relative to it.
     expect(await changedPaths(ws.path("repo/sub"), first)).toEqual({ known: true, paths: ["d.md"] });
     // A rename is a deletion and an addition.

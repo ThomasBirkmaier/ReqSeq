@@ -1397,21 +1397,38 @@ export const changedPaths = async (
   if (!isObjectId(commit)) {
     throw new Error(`changedPaths needs a commit ID, not ${commit}`);
   }
-  const [overrides, untracked] = await Promise.all([
-    filterOverrides(folder, options),
+  const [changes, untracked] = await Promise.all([
+    trackedChanges(folder, commit, options),
     run(folder, "untracked", options),
   ]);
-  if (!overrides.ok) {
-    return unknown(overrides);
-  }
-  const changes = await run(folder, "changes", { ...options, revision: commit, config: overrides.config });
-  if (!changes.ok) {
-    return unknown(changes);
+  if (!changes.known) {
+    return changes;
   }
   if (!untracked.ok) {
     return unknown(untracked);
   }
-  return { known: true, paths: [...zList(changes.stdout), ...zList(untracked.stdout)] };
+  return { known: true, paths: [...changes.paths, ...zList(untracked.stdout)] };
+};
+
+/**
+ * The paths of `changedPaths` without the files Git does not track: the tracked files of the working copy that
+ * differ from `commit`, deleted ones included (a stat-dirty file too). One `diff`, no walk of the work tree for
+ * untracked files; for a caller that tells a file missing at `commit` otherwise (`commitBlobs`).
+ */
+export const trackedChanges = async (
+  folder: string,
+  commit: string,
+  options: ReadOptions = {},
+): Promise<ChangedPaths> => {
+  if (!isObjectId(commit)) {
+    throw new Error(`trackedChanges needs a commit ID, not ${commit}`);
+  }
+  const overrides = await filterOverrides(folder, options);
+  if (!overrides.ok) {
+    return unknown(overrides);
+  }
+  const changes = await run(folder, "changes", { ...options, revision: commit, config: overrides.config });
+  return changes.ok ? { known: true, paths: zList(changes.stdout) } : unknown(changes);
 };
 
 /** Whether Git tracks a file (`trackedFile`), or why Git cannot tell. */
