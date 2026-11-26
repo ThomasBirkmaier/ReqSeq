@@ -6616,8 +6616,8 @@
       {
         "name": "workspace.connectAgent",
         "title": "Connect AI agent",
-        "summary": "The ready-made setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation. Creates and changes no file, also none of the client, and opens no connection.",
-        "details": "Clients: `claude-code` (Claude Code), `claude-desktop` (Claude Desktop), `cursor` (Cursor), `vscode` (VS Code), `codex-cli` (Codex CLI) and `other`. Without a client the output lists them. Claude Code, VS Code and Codex CLI get a command for the terminal (PowerShell on Windows); Claude Desktop and Cursor a JSON block with the file it belongs in on this system; `other` a JSON block in the common `mcpServers` form. For every client but Claude Desktop, `next` also names the call of `tool guide --skill --write` for the workspace, with the same program, as a command for the terminal (PowerShell on Windows), which writes the skill file. The server is named `reqseq`: a second workspace in the same client needs another name. On macOS, an app that runs from the temporary place the system gives a downloaded app that was not moved gets no setup (`agent.app-translocated`).",
+        "summary": "The setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation; for Claude Code also an entry for `.mcp.json`. Creates and changes no file and opens no connection.",
+        "details": "Clients: `claude-code` (Claude Code), `claude-desktop` (Claude Desktop), `cursor` (Cursor), `vscode` (VS Code), `codex-cli` (Codex CLI) and `other`. Without a client the output lists them. Claude Code, VS Code and Codex CLI get a command for the terminal (PowerShell on Windows); Claude Desktop and Cursor a JSON block with the file it belongs in on this system; `other` a JSON block in the common `mcpServers` form. For every client but Claude Desktop, `next` also names the call of `tool guide --skill --write` for the workspace, with the same program, as a command for the terminal (PowerShell on Windows), which writes the skill file. For Claude Code, `mcpJson` also gives an entry for the file `.mcp.json` in the root of the Git repository the workspace folder lies in (without Git, in the workspace folder): it starts `reqseq` from the PATH with the workspace path relative to that folder, once for macOS and Linux and once for Windows through `cmd /c`; the Windows form is left out when that path holds a space or one of `&^%<>|!\"(),;=\\`. The server is named `reqseq`: a second workspace in the same client, or in the same Git repository, needs another name. On macOS, an app that runs from the temporary place the system gives a downloaded app that was not moved gets no setup (`agent.app-translocated`).",
         "effect": "read",
         "stage": 6,
         "implements": [
@@ -6784,6 +6784,76 @@
               "type": "string",
               "minLength": 1,
               "description": "How to go on after pasting the setup; for every client but Claude Desktop also the command-line call, with the program of the setup, that writes the skill file, as a command for the terminal (PowerShell on Windows). Only with a client."
+            },
+            "mcpJson": {
+              "title": "Project MCP entry",
+              "type": "object",
+              "properties": {
+                "folder": {
+                  "title": "Folder",
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The absolute path of the folder the file `.mcp.json` belongs in: the root of the Git repository the workspace folder lies in, else the workspace folder. ReqSeq neither reads nor writes the file."
+                },
+                "entries": {
+                  "title": "Entries",
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "systems": {
+                        "title": "Systems",
+                        "enum": [
+                          "macos-linux",
+                          "windows"
+                        ],
+                        "description": "The systems the entry is for."
+                      },
+                      "title": {
+                        "title": "For",
+                        "enum": [
+                          "macOS and Linux",
+                          "Windows"
+                        ],
+                        "description": "The systems by name."
+                      },
+                      "text": {
+                        "title": "Entry",
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The whole JSON object with `mcpServers` and in it `reqseq`: it starts `reqseq` without a path with `mcp`, `--workspace` and the workspace path relative to the folder, with `/` and `.` for the folder itself; on Windows `cmd` with `/c` and `reqseq` first. No environment variable."
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "systems",
+                      "title",
+                      "text"
+                    ]
+                  },
+                  "description": "The entry for macOS and Linux, then the one for Windows unless it is left out."
+                },
+                "windowsMissing": {
+                  "title": "No Windows entry",
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Why there is no entry for Windows: the relative path holds a character `cmd` would read. Only then."
+                },
+                "note": {
+                  "title": "Note",
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "What the command and the entry are each for, that the server of the entry does not start without `reqseq` on the PATH, where the command holds, and that the entry replaces a server named `reqseq` in the file and keeps the others."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "folder",
+                "entries",
+                "note"
+              ],
+              "description": "The entry for the file `.mcp.json` of the Git repository, without absolute paths. Only for Claude Code."
             }
           },
           "additionalProperties": false,
@@ -6855,6 +6925,38 @@
           {
             "path": "next",
             "title": "Next"
+          },
+          {
+            "path": "mcpJson",
+            "title": "Project MCP entry"
+          },
+          {
+            "path": "mcpJson.folder",
+            "title": "Folder"
+          },
+          {
+            "path": "mcpJson.entries",
+            "title": "Entries"
+          },
+          {
+            "path": "mcpJson.entries[].systems",
+            "title": "Systems"
+          },
+          {
+            "path": "mcpJson.entries[].title",
+            "title": "For"
+          },
+          {
+            "path": "mcpJson.entries[].text",
+            "title": "Entry"
+          },
+          {
+            "path": "mcpJson.windowsMissing",
+            "title": "No Windows entry"
+          },
+          {
+            "path": "mcpJson.note",
+            "title": "Note"
           }
         ]
       },

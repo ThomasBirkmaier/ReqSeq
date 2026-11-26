@@ -69,9 +69,10 @@ const tempFolder = async (): Promise<string> => {
 };
 
 afterEach(async () => {
+  // `stop` ends the whole tree, as a server started through `cmd /c` or a `.cmd` launcher runs below a shell.
   for (const child of children.splice(0)) {
-    if (child.exitCode === null) {
-      child.kill();
+    if (child.exitCode === null && child.signalCode === null) {
+      await stop(child);
     }
   }
   await Promise.all(fixtures.splice(0).map((f) => f.cleanup()));
@@ -400,6 +401,42 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
       [installed, copy].map((root) => connectAndStart(path.join(root, layout.launcher))),
     );
     expect(first?.command).not.toBe(second?.command);
+  });
+
+  it(`[SR-227/AK-qxzf] the .mcp.json entry of the ${system} delivery starts its MCP server in its folder, with the launcher as reqseq on the PATH`, async (ctx) => {
+    if (!runnable) {
+      ctx.skip(notRunnable);
+    }
+    const launcher = path.join(installed, layout.launcher);
+    const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository", git: true });
+    fixtures.push(ws);
+    const run = launch(launcher, ["workspace", "connect-agent", "--client", "claude-code", "--json"], ws);
+    let stdout = "";
+    run.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString("utf8")));
+    expect(await exited(run)).toBe(0);
+    const { mcpJson } = JSON.parse(stdout) as {
+      mcpJson: { folder: string; entries: { systems: string; text: string }[] };
+    };
+    const systems = process.platform === "win32" ? "windows" : "macos-linux";
+    const entry = mcpJson.entries.find((candidate) => candidate.systems === systems);
+    const { command, args } = (
+      JSON.parse(entry?.text ?? "") as { mcpServers: { reqseq: { command: string; args: string[] } } }
+    ).mcpServers.reqseq;
+    // The folder of the launcher first on the PATH, so `reqseq` (`reqseq.cmd` on Windows) is this delivery's.
+    const env: NodeJS.ProcessEnv = { ...process.env };
+    const pathKey = Object.keys(env).find((key) => key.toUpperCase() === "PATH") ?? "PATH";
+    env[pathKey] = `${path.dirname(launcher)}${path.delimiter}${env[pathKey] ?? ""}`;
+    const child = spawn(command, args, { cwd: mcpJson.folder, stdio: "pipe", env });
+    children.push(child);
+    const client = new Client({ name: "delivery", version: "1" });
+    await client.connect(new LineTransport(child.stdout, { write: (text) => child.stdin.write(text) }));
+    const result = await client.callTool({ name: "tool_info", arguments: {} });
+    const info = result.structuredContent as { workspace: { path: string }; versions: { cli: string } };
+    expect(info.workspace.path).toBe(ws.root);
+    expect(info.versions.cli).toBe(version);
+    child.stdin.end();
+    expect(await exited(child)).toBe(0);
+    await client.close();
   });
 
   it(`[SR-078/AK-n50j] the ${system} delivery installs without network and its command line and MCP server run`, async (ctx) => {

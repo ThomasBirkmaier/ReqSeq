@@ -1,7 +1,7 @@
 // Cross-access scenarios of workspace.connectAgent (SR-227): without a client and for each client, every access
 // gives the same setup, as all of them stand for the installation of this process (D-029). Each client gets its
-// form (AK2), every client but Claude Desktop also the call that writes the skill file (AK2), and the setup names absolute paths
-// (AK3). Running the setup is the CLI e2e test (AK5). AK4 needs injected macOS facts (core's tests) and AK6 is
+// form (AK2), every client but Claude Desktop also the call that writes the skill file (AK2), the server names
+// absolute paths (AK3), and Claude Code also gets the `.mcp.json` entry with `reqseq` and a relative path (AK7). Running the setup is the CLI e2e test (AK5). AK4 needs injected macOS facts (core's tests) and AK6 is
 // about files, which a comparison of outputs does not see (CLI e2e).
 import path from "node:path";
 import { expect } from "vitest";
@@ -66,6 +66,30 @@ scenariosOf("workspace.connectAgent", [
       formOf(client, setupOf(results));
     },
   })),
+  {
+    name: "Claude Code also gets the .mcp.json entry with reqseq from the PATH and a relative workspace path",
+    tag: "[SR-227/AK-bq8m]",
+    input: { client: "claude-code" },
+    expect: "output",
+    check: (results) => {
+      const { mcpJson } = (
+        results["core"]?.outcome as {
+          output: { mcpJson?: { folder: string; entries: { systems: string; text: string }[] } };
+        }
+      ).output;
+      expect(mcpJson?.folder.startsWith("<copy>")).toBe(true);
+      expect(mcpJson?.entries.map((entry) => entry.systems)).toEqual(["macos-linux", "windows"]);
+      const [unix, windows] = (mcpJson?.entries ?? []).map(
+        (entry) =>
+          (JSON.parse(entry.text) as { mcpServers: { reqseq: { command: string; args: string[] } } })
+            .mcpServers.reqseq,
+      );
+      expect(unix?.command).toBe("reqseq");
+      expect(unix?.args.slice(0, 2)).toEqual(["mcp", "--workspace"]);
+      expect(path.isAbsolute(unix?.args[2] ?? "")).toBe(false);
+      expect(windows).toEqual({ command: "cmd", args: ["/c", "reqseq", ...(unix?.args ?? [])] });
+    },
+  },
   {
     name: "the setup names the absolute paths of the program and of the workspace",
     tag: "[SR-227/AK-cw0k]",

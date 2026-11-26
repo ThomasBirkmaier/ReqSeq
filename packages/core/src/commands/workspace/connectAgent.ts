@@ -1,16 +1,17 @@
 // workspace.connectAgent (SR-227): the setup that connects a client of an AI agent to the MCP server of this
 // workspace, made from the installation that runs the command (installation.ts) and the system's facts
 // (agent-setup.ts). It only reads: whether the command line's entry and the delivery's launcher exist, and the
-// workspace file for its name; it creates and changes no file, the client's included, and opens no
+// workspace file for its name, and the Git root of the workspace folder for `.mcp.json` (AK7, D-079); it creates and changes no file, the client's included, and opens no
 // connection (AK6, D-068).
 import { realpath, stat } from "node:fs/promises";
 import os from "node:os";
+import path from "node:path";
 import type { InvokedOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { sentence } from "../answer.js";
 import { CHOOSE_CLIENT, CLIENTS, deliveryLauncher, setupOf } from "../../agent-setup.js";
 import { currentInstallation } from "../../installation.js";
-import { workspaceLayoutState } from "../../workspace/index.js";
+import { gitRootOf, workspaceLayoutState } from "../../workspace/index.js";
 
 /** The output with its answer: `run` builds the sentence, as it names the workspace, which the output does not hold. */
 type Output = InvokedOutput<"workspace.connectAgent">;
@@ -27,6 +28,17 @@ const realFile = async (file: string): Promise<string | undefined> => {
 
 const exists = async (file: string | undefined): Promise<boolean> =>
   file !== undefined && (await realFile(file)) !== undefined;
+
+/**
+ * The folder of `.mcp.json` (AK7): the Git root the workspace folder lies in, else that folder, as D-079 finds
+ * the folder of the skill file; and the workspace relative to it, with `/`, `.` for the folder itself.
+ */
+const repositoryOf = async (root: string): Promise<{ folder: string; workspace: string }> => {
+  const real = await realpath(root);
+  const folder = (await gitRootOf(real)) ?? real;
+  const relative = path.relative(folder, real).split(path.sep).join("/");
+  return { folder, workspace: relative === "" ? "." : relative };
+};
 
 const CLI_MISSING =
   "The command line of this installation (its bin.js) is missing, so no client could start it.";
@@ -59,6 +71,7 @@ export default defineCommand({
       env: { APPDATA: process.env["APPDATA"], XDG_CONFIG_HOME: process.env["XDG_CONFIG_HOME"] },
       workspace: ctx.workspace.root,
       workspaceName: layout.name,
+      repository: await repositoryOf(ctx.workspace.root),
     });
     if ("code" in result) {
       throw new CommandError(result.code, result.message);
@@ -71,6 +84,9 @@ export default defineCommand({
       setup: result.setup,
       valid: result.valid,
       next: result.next,
+      ...(result.mcpJson === undefined
+        ? {}
+        : { mcpJson: { ...result.mcpJson, entries: result.mcpJson.entries.map((entry) => ({ ...entry })) } }),
     };
   },
 });
