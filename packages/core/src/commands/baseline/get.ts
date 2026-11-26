@@ -250,6 +250,7 @@ const shownBaseline = async (
   ctx: CommandContext,
   read: Awaited<ReturnType<typeof selectedOf>>,
   page: Pick<CommandInput<typeof command>, "limit" | "offset" | "withEvidence">,
+  undated?: ShowRequest["undated"],
 ): Promise<CommandOutput<typeof command>> => {
   const { workspace } = ctx;
   const { baseline, problems: unresolved, selected } = read;
@@ -271,22 +272,26 @@ const shownBaseline = async (
     limit: page.limit,
     offset: page.offset,
     ...(page.withEvidence ? await evidenceOf(workspace, metamodel, baseline, selected?.views, problems) : {}),
+    ...(undated === undefined ? {} : { undated }),
   });
 };
 
 /**
  * `baseline.get` of `baseline` with every row and without evidence, as the command gives it, for the pages of the HTML
- * export (SR-232 AK7, SR-233 AK2, AK3, SR-234 AK1, AK2).
+ * export (SR-232 AK7, SR-233 AK2, AK3, SR-234 AK1, AK2): without the warnings of SR-254, whose versions go into
+ * `undated` with their rows' states.
  */
 export const baselineShown = async (
   ctx: CommandContext,
   baseline: Baseline,
+  undated: NonNullable<ShowRequest["undated"]>,
 ): Promise<CommandOutput<typeof command>> =>
-  shownBaseline(ctx, await selectedOf(ctx, baseline), {
-    limit: Number.MAX_SAFE_INTEGER,
-    offset: 0,
-    withEvidence: false,
-  });
+  shownBaseline(
+    ctx,
+    await selectedOf(ctx, baseline),
+    { limit: Number.MAX_SAFE_INTEGER, offset: 0, withEvidence: false },
+    undated,
+  );
 
 export default defineCommand({
   name: command,

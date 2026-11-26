@@ -19,7 +19,7 @@ import {
   fileMoves,
   headCommit,
   headFiles,
-  readsWorkTree,
+  symbolicHead,
   firstParentChanges,
   historyRange,
   openObjectReader,
@@ -216,8 +216,8 @@ describe("git reader", () => {
       "isGitPath",
       "isRevision",
       "openObjectReader",
-      "readsWorkTree",
-      "resolveCommit",
+            "resolveCommit",
+      "symbolicHead",
       "trackedFile",
       "workTreeOf",
     ]);
@@ -264,11 +264,14 @@ describe("git reader", () => {
     expect(await headCommit(ws.path("plain"))).toMatchObject({ known: false, reason: "not-a-repository" });
   });
 
-  it("reads a work tree also without commits, and none outside one", async () => {
-    const ws = await fixture();
-    expect(await readsWorkTree(ws.path("plain"))).toMatchObject({ known: false, reason: "not-a-repository" });
+  it("tells a HEAD that names a branch, also without commits, from one that names a commit or none", async () => {
+    const ws = await fixture(["repo"]);
+    expect(await symbolicHead(ws.path("plain"))).toMatchObject({ known: false, reason: "not-a-repository" });
     await ws.git(["init", "--quiet"], "plain");
-    expect(await readsWorkTree(ws.path("plain"))).toEqual({ known: true });
+    expect(await symbolicHead(ws.path("plain"))).toEqual({ known: true });
+    expect(await symbolicHead(ws.path("repo"))).toEqual({ known: true });
+    await ws.git(["checkout", "--quiet", "--detach"], "repo");
+    expect(await symbolicHead(ws.path("repo"))).toMatchObject({ known: false });
   });
 
   it("knows no commit when git prints something else", async () => {

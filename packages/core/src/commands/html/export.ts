@@ -13,13 +13,12 @@ import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import type { CommandContext } from "../../catalog.js";
-import type { Baseline } from "../../baselines/index.js";
+import type { Baseline, ShowRequest } from "../../baselines/index.js";
 import { workspaceBaselines } from "../../baselines/index.js";
 import type { Problem } from "../../generated/types.js";
 import type { ExportBaseline, NewestBaseline } from "../../html-export/index.js";
 import { baselinePage, writeHtmlExport } from "../../html-export/index.js";
-import type { UndatedVersion } from "../../model/index.js";
-import { UNDATED_CODES, elementStoreState, undatedWarnings } from "../../model/index.js";
+import { undatedWarnings } from "../../model/index.js";
 import { baselineShown } from "../baseline/get.js";
 import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
 
@@ -49,16 +48,15 @@ const exportBaselines = async (
   const shown: ExportBaseline[] = [];
   // A problem several baselines give (two naming the same commit) once, in the order first given.
   const problems = new Map<string, Problem>();
+  const undated: NonNullable<ShowRequest["undated"]> = [];
   for (const { baseline } of ordered) {
-    const output = await baselineShown(ctx, baseline);
+    const output = await baselineShown(ctx, baseline, undated);
     shown.push(output);
     for (const problem of output.problems ?? []) {
-      if (!UNDATED_CODES.has(problem.code)) {
-        problems.set(JSON.stringify(problem), problem);
-      }
+      problems.set(JSON.stringify(problem), problem);
     }
   }
-  return { baselines: shown, problems: [...problems.values(), ...(await undatedOf(ctx, shown))] };
+  return { baselines: shown, problems: [...problems.values(), ...(await undatedOf(ctx, undated))] };
 };
 
 /** The states of the rows whose version with its date the pages show (SR-232 AK7, SR-234 AK1). */
@@ -68,21 +66,16 @@ const DATED_STATES: ReadonlySet<string> = new Set(["changed", "removed", "unchan
  * The warnings of SR-254 for the versions without date that a page names (see the file comment), each once for all
  * pages: of every baseline, the rows of an element of the workspace whose version the pages show with its date.
  */
-const undatedOf = async (ctx: CommandContext, baselines: readonly ExportBaseline[]): Promise<Problem[]> => {
-  const store = await ctx.workspace.get(elementStoreState);
-  const undated = baselines.flatMap((baseline) =>
-    baseline.elements.flatMap((row): UndatedVersion[] => {
-      const element = store.byId.get(row.id)?.find((r) => r.repository === row.repository);
-      return row.version === undefined ||
-        row.versionDate !== null ||
-        !DATED_STATES.has(row.state) ||
-        element === undefined
-        ? []
-        : [{ repository: element.repository, id: element.id, element, version: row.version }];
-    }),
+const undatedOf = async (
+  ctx: CommandContext,
+  undated: NonNullable<ShowRequest["undated"]>,
+): Promise<Problem[]> =>
+  undatedWarnings(
+    ctx.workspace,
+    undated.flatMap(({ state, version }) =>
+      DATED_STATES.has(state) && version.element !== undefined ? [version] : [],
+    ),
   );
-  return undatedWarnings(ctx.workspace, undated);
-};
 
 /** The newest baseline as the start page names it; undefined without one. */
 const newestOf = (baselines: readonly ExportBaseline[]): NewestBaseline | undefined => {

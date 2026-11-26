@@ -3,19 +3,34 @@
 //
 // - Per repository, the first reason of SR-254 AK2 that holds (`repositoryDating`): `missing` (not on this
 //   machine, SR-006 AK2, or a name no repository of the workspace has), `unreadable` (no `.git` entry in its folder
-//   or above, no git program, Git refuses it or finds no work tree: `headCommit`, and `readsWorkTree` where HEAD
-//   names no commit), `shallow` (a shallow clone). A git call that does not answer in time tells no reason.
+//   or above, no git program, Git refuses it or finds no work tree: `headCommit`; a HEAD that names no commit
+//   counts as a repository without a commit only where it names a branch, `symbolicHead`, whose Git folder holds
+//   no commit for it, `headFiles`), `shallow` (a shallow clone). A git call that does not answer in time tells no
+//   reason.
 // - A version counts as not committed (AK3) when it is the element's current version (`currentVersionsOf`,
 //   `sameVersion`) in a repository that is on this machine and that Git reads: with a commit and the whole history,
 //   where `versionTimes` gives `uncommitted` (its content differs from the last commit that changed the file, or no
-//   commit has the file); in a shallow clone, where the element file or an image its text embeds differs from HEAD
-//   (`uncommittedFiles`: byte by byte, more, never less); in a repository without a commit, always.
+//   commit has the file); in a shallow clone, where one `changedPaths` against HEAD lists the element file and
+//   HEAD has no such file or its element there has another version (`sameContent`: line endings and spaces at
+//   line ends make no difference, SR-091), or lists an image its text embeds that differs from HEAD
+//   (`uncommittedFiles`, byte by byte); in a repository without a commit, always. A new element file Git ignores
+//   is not listed, so in a shallow clone it gets the reason of AK2.
 // - The warnings, each once per repository (`undatedProblems`): `version.uncommitted` with the number of elements
 //   not committed; for the other versions without date `version.date-unavailable` with the reason of AK2 where
 //   one holds, else `version.date-unknown` with their number. An element counts once, whatever number of its
 //   versions the output names. A sort (`sortReasonProblems`, SR-075 AK5) gives only `version.date-unavailable`.
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { Problem } from "../generated/types.js";
-import { headCommit, readsWorkTree, workTreeOf } from "../git/reader.js";
+import type { ChangedPaths, HeadFiles } from "../git/reader.js";
+import {
+  changedPaths,
+  headCommit,
+  headFiles,
+  openObjectReader,
+  symbolicHead,
+  workTreeOf,
+} from "../git/reader.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { sameVersion } from "../version/version.js";
@@ -26,7 +41,7 @@ import { currentVersionsOf } from "./current-versions.js";
 import type { ElementRecord } from "./elements.js";
 import { uncommittedFiles } from "./uncommitted.js";
 import type { VersionDateContext } from "./version-date.js";
-import { versionTimes } from "./version-date.js";
+import { sameContent, versionTimes } from "./version-date.js";
 
 /** A version an output names without a date. */
 export interface UndatedVersion {
@@ -61,6 +76,8 @@ type RepositoryDating =
       readonly readable: true;
       readonly folder: string;
       readonly commit?: string;
+      /** In a shallow clone, `changedPaths` against `commit`, started early. */
+      readonly changed?: Promise<ChangedPaths>;
     };
 
 /** The versions without date of one repository, as `classifyUndated` sorted them. */
@@ -73,6 +90,18 @@ export interface UndatedRepository {
   readonly other: readonly UndatedVersion[];
 }
 
+/**
+ * The diff of a shallow clone against the commit its HEAD files name, started at once: `repositoryDating` reads it
+ * where git names the same commit, so the diff runs beside the question to git.
+ */
+const earlyDiff = (
+  folder: string,
+  files: HeadFiles | undefined,
+): { readonly commit: string; readonly changed: Promise<ChangedPaths> } | undefined =>
+  files?.shallow === true && files.commit !== undefined
+    ? { commit: files.commit, changed: changedPaths(folder, files.commit) }
+    : undefined;
+
 /** The reason of AK2 for the repository `name` and whether Git reads it (see the file comment). */
 const repositoryDating = async (layout: WorkspaceLayout, name: string): Promise<RepositoryDating> => {
   const repository = layout.repositories.find((r) => r.name === name);
@@ -83,18 +112,28 @@ const repositoryDating = async (layout: WorkspaceLayout, name: string): Promise<
   if ((await workTreeOf(repository.folder)) === undefined) {
     return { reason: "unreadable", readable: false };
   }
+  const files = await headFiles(repository.folder);
+  const early = earlyDiff(repository.folder, files);
   const head = await headCommit(repository.folder);
   if (head.known) {
     return head.shallow
-      ? { reason: "shallow", readable: true, folder: repository.folder, commit: head.commit }
+      ? {
+          reason: "shallow",
+          readable: true,
+          folder: repository.folder,
+          commit: head.commit,
+          ...(early?.commit === head.commit ? { changed: early.changed } : {}),
+        }
       : { readable: true, folder: repository.folder, commit: head.commit };
   }
-  // `not-a-repository` is also a work tree whose HEAD names no commit yet: git still reads it.
-  const read = head.reason === "not-a-repository" ? await readsWorkTree(repository.folder) : head;
-  if (read.known) {
+  // `not-a-repository` is also a work tree whose HEAD names a branch without a commit yet: git still reads it.
+  const read = head.reason === "not-a-repository" ? await symbolicHead(repository.folder) : head;
+  if (read.known && files?.commit === undefined) {
     return { readable: true, folder: repository.folder };
   }
-  return read.reason === "timeout" ? { readable: false } : { reason: "unreadable", readable: false };
+  return !read.known && read.reason === "timeout"
+    ? { readable: false }
+    : { reason: "unreadable", readable: false };
 };
 
 /** A version without date that is the element's current one, with that element and its entry. */
@@ -114,6 +153,88 @@ const filesOf = ({ element, entry }: Current): string[] => [
 const versionsOf = (kept: readonly Current[]): Set<UndatedVersion> =>
   new Set(kept.map(({ undated }) => undated));
 
+const nfc = (text: string): string => text.normalize("NFC");
+
+/** The bytes of each of `names` (`<commit>:<path>`) in the repository of `folder`: null for no blob; undefined when Git cannot tell. */
+const blobsOf = async (folder: string, names: readonly string[]): Promise<(Buffer | null)[] | undefined> => {
+  const reader = openObjectReader(folder);
+  try {
+    const parts = names.map((): Buffer[] => []);
+    const read = await reader.read(names, (_, index) => (chunk) => {
+      parts[index]?.push(chunk);
+    });
+    return read.known
+      ? parts.map((chunks, index) => (read.objects[index]?.type === "blob" ? Buffer.concat(chunks) : null))
+      : undefined;
+  } finally {
+    reader.close();
+  }
+};
+
+/**
+ * Which of `current`, of the shallow clone in `folder` with HEAD `commit`, are not committed (see the file
+ * comment): only the files `changedPaths` lists are read, so a page costs one diff, not a pass over every file.
+ */
+const changedInShallow = async (
+  context: VersionDateContext,
+  {
+    folder,
+    commit,
+    changed: early,
+  }: { readonly folder: string; readonly commit: string; readonly changed?: Promise<ChangedPaths> },
+  current: readonly Current[],
+): Promise<Current[]> => {
+  const changed = await (early ?? changedPaths(folder, commit));
+  if (!changed.known) {
+    return [];
+  }
+  // The listed paths in NFC, each with its spelling in Git.
+  const listed = new Map(changed.paths.map((file) => [nfc(file), file]));
+  const images = [
+    ...new Set(current.flatMap((c) => filesOf(c).slice(1)).filter((file) => listed.has(nfc(file)))),
+  ];
+  const imageSet = new Set(images.map(nfc));
+  const dirtyImages =
+    images.length === 0
+      ? undefined
+      : await uncommittedFiles(folder, commit, images, (file) => imageSet.has(nfc(file)));
+  const dirty = new Set(dirtyImages?.known === true ? dirtyImages.files.map(nfc) : []);
+  const unknownImages = dirtyImages?.known === false;
+  const elements = current.flatMap((c) => {
+    const name = listed.get(nfc(c.element.file));
+    return name === undefined ? [] : [{ c, name: `${commit}:${name}` }];
+  });
+  const heads = await blobsOf(
+    folder,
+    elements.map(({ name }) => name),
+  );
+  const changedElements = new Set<Current>();
+  await Promise.all(
+    elements.map(async ({ c }, index) => {
+      const head = heads?.[index];
+      if (head === undefined) {
+        return;
+      }
+      const now = await fs.readFile(path.join(folder, ...c.element.file.split("/"))).catch(() => undefined);
+      if (
+        head === null ||
+        now === undefined ||
+        !sameContent(context, c.element.file, c.element.id, head, now)
+      ) {
+        changedElements.add(c);
+      }
+    }),
+  );
+  return current.filter(
+    (c) =>
+      changedElements.has(c) ||
+      (!unknownImages &&
+        filesOf(c)
+          .slice(1)
+          .some((file) => dirty.has(nfc(file)))),
+  );
+};
+
 /** Which of `current`, all of one repository, are not committed (see the file comment). */
 const notCommitted = async (
   context: VersionDateContext,
@@ -123,18 +244,12 @@ const notCommitted = async (
   if (!dating.readable || current.length === 0) {
     return new Set();
   }
-  const { commit, folder } = dating;
+  const { commit } = dating;
   if (commit === undefined) {
     return versionsOf(current);
   }
   if (dating.reason === "shallow") {
-    const asked = new Set(current.flatMap(filesOf));
-    const found = await uncommittedFiles(folder, commit, [...asked], (file) => asked.has(file));
-    if (!found.known) {
-      return new Set();
-    }
-    const dirty = new Set(found.files);
-    return versionsOf(current.filter((c) => filesOf(c).some((file) => dirty.has(file))));
+    return versionsOf(await changedInShallow(context, { ...dating, commit }, current));
   }
   const times = await versionTimes(
     context,
@@ -163,7 +278,12 @@ export const classifyUndated = async (
   const context: VersionDateContext = { workspace, layout, metamodel };
   const byName = new Map<string, UndatedVersion[]>();
   for (const version of undated) {
-    byName.set(version.repository, [...(byName.get(version.repository) ?? []), version]);
+    const list = byName.get(version.repository);
+    if (list === undefined) {
+      byName.set(version.repository, [version]);
+    } else {
+      list.push(version);
+    }
   }
   const versions = await currentVersionsOf(
     workspace,

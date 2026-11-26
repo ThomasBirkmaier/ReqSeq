@@ -54,6 +54,8 @@ const COMMANDS = {
    * the repository is a shallow clone, and its HEAD commit.
    */
   head: ["rev-parse", "--show-toplevel", "--is-shallow-repository", "--verify", "HEAD"],
+  /** The branch HEAD names, also one without commits; fails where HEAD names a commit. */
+  symbolicHead: ["symbolic-ref", "-q", "HEAD"],
   /** The path of the folder git runs in from the top level of its work tree, with `/` after each name. */
   prefix: ["rev-parse", "--show-prefix"],
   /**
@@ -684,15 +686,15 @@ const prefixDepth = async (
 };
 
 /**
- * Whether git reads the work tree `folder` lies in, also one without a commit (`rev-parse
- * --show-prefix`, under the short time limit); unknown when git is missing, refuses the repository,
- * times out or finds no work tree there.
+ * Whether git reads the repository whose work tree holds `folder` and HEAD names a branch (`symbolic-ref -q HEAD`,
+ * under the short time limit), as before its first commit; unknown when git is missing, refuses the repository,
+ * times out, finds no work tree there, or HEAD names a commit.
  */
-export const readsWorkTree = async (
+export const symbolicHead = async (
   folder: string,
   options: ReadOptions = {},
 ): Promise<{ readonly known: true } | GitUnknown> => {
-  const result = await run(folder, "prefix", options);
+  const result = await run(folder, "symbolicHead", { ...options, quick: true });
   return result.ok ? { known: true } : unknown(result);
 };
 

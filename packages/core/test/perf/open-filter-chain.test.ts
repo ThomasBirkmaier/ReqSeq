@@ -30,6 +30,7 @@ import {
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { RACY_MS, serializeModelCache } from "../../src/model/model-cache.js";
 import type { LoadedStore, StoreUpdate } from "../../src/model/store.js";
 import { storeUpdate } from "../../src/model/store.js";
@@ -476,6 +477,62 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       expect(afterMove.ms, thresholdMessage(afterMove)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
     }
   });
+
+  it("[SR-082/AK-h27y] sorts every element of shallow clones by the time of its version within 500 ms (SR-075 AK5, SR-254)", async () => {
+    const root = String(fixture?.root);
+    // Each repository cloned with one commit, beside the others as in the workspace file; one element changed.
+    for (const { folder } of tree.repositories) {
+      await fixture?.git(
+        [
+          "clone",
+          "--quiet",
+          "--depth",
+          "1",
+          pathToFileURL(path.join(root, folder)).href,
+          path.join("shallow", folder),
+        ],
+        ".",
+      );
+    }
+    const changed = tree.elements[0];
+    const folderOf = tree.repositories.find((r) => r.name === changed?.repository)?.folder;
+    const changedFile = path.join(root, "shallow", String(folderOf), ...String(changed?.file).split("/"));
+    await fs.appendFile(changedFile, "\nChanged in the clone.\n");
+    const shallowRoot = path.join(root, "shallow", path.relative(root, fixture?.workspaceRoot ?? root));
+    const shallow = new Workspace(shallowRoot);
+    try {
+      await warmWorkspace(shallow);
+      const sortedList = async (): Promise<FullList> =>
+        (await invoke(
+          "element.list",
+          { sort: [{ by: "versionDate", order: "desc" }] },
+          { workspace: shallow },
+        )) as FullList;
+      await measure(
+        "sort: all elements of shallow clones by versionDate, first page: first sort",
+        sortedList,
+        {
+          basis: "SR-075 AK5, SR-254 (recorded)",
+        },
+      );
+      const { result: sorted, measurement } = await measure(
+        "sort: all elements of shallow clones by versionDate, first page",
+        sortedList,
+        {
+          basis: "SR-082 AK4 (element.list sorted by versionDate in shallow clones, SR-075 AK5)",
+          thresholdMs: RESULT_MS,
+        },
+      );
+      expect(sorted.total).toBe(ELEMENTS);
+      expect(new Set(sorted.problems?.map((p) => p.code))).toEqual(new Set(["version.date-unavailable"]));
+      expect(sorted.problems).toHaveLength(tree.repositories.length);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
+      // The changed element is not committed, so newest; the others have no date a shallow clone can give.
+      expect(sorted.elements[0]?.id).toBe(changed?.id);
+    } finally {
+      await shallow.close();
+    }
+  }, 600_000);
 
   type Chain = CommandOutput<"trace.chain">;
 

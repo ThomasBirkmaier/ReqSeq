@@ -34,6 +34,7 @@ import type { VersionDateContext, VersionDateRequest } from "./version-date.js";
 import {
   metamodelChange,
   prepareVersionDates,
+  sameContent,
   undatedCause,
   versionDates,
   versionStarts,
@@ -1882,5 +1883,31 @@ describe("version date at a merge, against its first parent (SR-082 AK4)", () =>
     // The next call asks again.
     const [times] = (await sameAsFresh(repo, asked)) as [{ kind: string }[]];
     expect(times.map((t) => t.kind)).not.toContain("late");
+  });
+});
+
+describe("same content of an element file at a commit and now (SR-254 AK3, SR-091)", () => {
+  it("[SR-254/AK-j82g] ignores line endings and spaces at line ends, not the text, the links or the element", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-001/two-elements" });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    const ctx = await context(workspace);
+    const id = "25425425-0000-4000-8000-00000000f003";
+    const text = (body: string, extra = ""): Buffer =>
+      Buffer.from(
+        `---\nid: ${id}\ntype: system-requirement\nstatus: draft\ntitle: Same${extra}\n---\n\n${body}\n`,
+      );
+    const file = "requirements/SR-00000000f003.md";
+    const same = (head: Buffer, now: Buffer, of = id): boolean => sameContent(ctx, file, of, head, now);
+    const head = text("Body ![Map](../images/map.png)");
+    expect(same(head, Buffer.from(head.toString().replace(/\)\n$/, ")  \n").replace(/\n/g, "\r\n")))).toBe(
+      true,
+    );
+    expect(same(head, text("Other ![Map](../images/map.png)"))).toBe(false);
+    expect(same(head, text("Body ![Map](../images/other.png)"))).toBe(false);
+    expect(same(head, head, "25425425-0000-4000-8000-00000000f004")).toBe(false);
+    const endless = text("Body", "\nacceptance-criteria: .inf");
+    expect(same(endless, endless)).toBe(false);
   });
 });

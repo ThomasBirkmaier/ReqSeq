@@ -44,7 +44,7 @@ import { metamodelState } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { VersionFile, VersionForms } from "../version/version.js";
-import { sameVersion } from "../version/version.js";
+import { NORMAL_FORM, sameVersion } from "../version/version.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ImageLink, ImageSource } from "./images.js";
@@ -264,6 +264,37 @@ const pathspecOf = (file: string): string => file.slice(0, file.lastIndexOf("/")
 
 /** The object name of `file` at `commit`. */
 const objectName = (commit: string, file: string): string => `${commit}:${file}`;
+
+/**
+ * Whether `head` and `now`, the bytes of the element file `file` at a commit and in the working copy, hold the
+ * element `id` with the same content (SR-254 AK3, for a shallow clone in `model/undated.ts`): the same image links
+ * and the same version over them, so line endings and spaces at line ends make no difference (SR-091). The images
+ * are not compared: the caller has found them unchanged. False where either does not hold the element or has no
+ * version.
+ */
+export const sameContent = (
+  context: Pick<VersionDateContext, "layout" | "metamodel">,
+  file: string,
+  id: string,
+  head: Buffer,
+  now: Buffer,
+): boolean => {
+  const ignored = ignoredBy(context.layout);
+  const [then, current] = [heldElement(file, id, head, ignored), heldElement(file, id, now, ignored)];
+  const paths = (held: Held): string => JSON.stringify(held.links.map((link) => link.path));
+  if (then === undefined || current === undefined || paths(then) !== paths(current)) {
+    return false;
+  }
+  const files = then.links.map((link) => ({ path: link.path, sha256: null }));
+  try {
+    const versionOf = (held: Held): string =>
+      elementVersions(held.record, held.body, context.metamodel, files)[NORMAL_FORM];
+    return versionOf(then) === versionOf(current);
+  } catch {
+    // A value the version cannot take (`.inf`).
+    return false;
+  }
+};
 
 /** Thrown inside a walk when Git cannot tell. */
 class Unknown extends Error {
