@@ -121,10 +121,10 @@ const arrayLines = (
     return [`${key}:`, ...elementListLines(value, names, style)];
   }
   if (value.every(isProblem)) {
-    return [`${key}:`, ...indent(value.map((finding) => findingLine(finding, style)))];
+    return [`${key}:`, ...indent(value.map((finding) => findingLine(finding, style, names)))];
   }
   if (value.every(isEvidenceRecord)) {
-    return [`${key}:`, ...indent(value.map(listedRecordLine))];
+    return [`${key}:`, ...indent(value.map((record) => listedRecordLine(record, names)))];
   }
   if (value.every(isTestCase)) {
     return [`${key}:`, ...indent(value.map(testCaseLine))];

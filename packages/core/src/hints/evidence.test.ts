@@ -18,6 +18,7 @@ import {
 } from "../evidence/index.js";
 import { loadWorkspaceLayout, workspaceLayoutState } from "../workspace/index.js";
 import { metamodelState } from "../metamodel/index.js";
+import type { ElementRecord, ShortIds } from "../model/index.js";
 import {
   currentVersionOf,
   currentVersionsState,
@@ -29,6 +30,7 @@ import {
   elementEvidenceFindings,
   outdatedEvidenceFindings,
   outdatedEvidenceProblemsState,
+  variantLabelOf,
 } from "./evidence.js";
 
 type Output = CommandOutput<"workspace.check">;
@@ -288,6 +290,23 @@ describe("outdated evidence (SR-025 AK4)", () => {
     ]);
   });
 
+  it("names a variant of the message by its short ID with its identifier, else its UUID (#2527)", () => {
+    const variant = { id: V, data: { "spec-id": "VAR-001" } } as unknown as ElementRecord;
+    const plain = { id: B, data: {} } as unknown as ElementRecord;
+    const store = {
+      byId: new Map([
+        [V, [variant]],
+        [B, [plain]],
+      ]),
+    };
+    const shortIds = {
+      of: (e: ElementRecord) => (e.id === V ? "VAR-c0000000001" : "VAR-b0000000002"),
+      identifierOf: (e: ElementRecord) => e.data["spec-id"] as string | undefined,
+    } as unknown as ShortIds;
+    const label = variantLabelOf(store, shortIds);
+    expect([label(V), label(B), label(N)]).toEqual(["VAR-c0000000001 (VAR-001)", "VAR-b0000000002", N]);
+  });
+
   it("leaves out records of elements that are not in the store or have no current version", () => {
     const element = { id: B } as Parameters<typeof outdatedEvidenceFindings>[0][number];
     const label = (): string => "B";
@@ -484,6 +503,19 @@ describe("outdated evidence (SR-025 AK4)", () => {
       const state = (await workspace.get(outdatedEvidenceProblemsState)).map(fieldsOf);
       return [alone, state];
     };
+
+    it("names the variant by its short ID, not its UUID, the same in both paths; an unknown one by its UUID (#2527)", async () => {
+      const unknown = `${P}c00000000ff`;
+      const [alone, state] = await both([
+        record(A, OLD, "2026-01-01T00:00:00Z", { variant: V }),
+        record(A, OLD, "2026-01-01T00:00:00Z", { variant: unknown }),
+      ]);
+      expect(state.map((p) => p[1])).toEqual([
+        "The newest verification record of System Requirement SR-b0000000001 for variant VAR-c0000000001, from 2026-01-01T00:00:00Z, is for an older version",
+        `The newest verification record of System Requirement SR-b0000000001 for variant ${unknown}, from 2026-01-01T00:00:00Z, is for an older version`,
+      ]);
+      expect(alone).toEqual(state);
+    });
 
     it("[SR-026/AK-w590] [SR-025/AK-tmds] names the first record of a tie in the order of the records, not of the index", async () => {
       // Two locations whose repositories are not in name order: the index sorts a tie by repository

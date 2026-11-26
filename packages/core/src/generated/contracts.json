@@ -25955,6 +25955,14 @@
             "incomplete": {
               "$ref": "../common.schema.json#/$defs/incomplete",
               "description": "True while a repository of the workspace file is not on this machine: the hints of its elements are not listed."
+            },
+            "names": {
+              "title": "Named elements",
+              "type": "array",
+              "description": "The variants that the `view` of an outdated evidence hint (`evidence.outdated`) on the page names by UUID only, each once in the order first named, so a reader names them by short ID, identifier and title (as `evidence.status` names its variants). Left out when it names none.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/elementName"
+              }
             }
           },
           "additionalProperties": false,
@@ -26155,6 +26163,31 @@
             "path": "incomplete",
             "title": "Incomplete",
             "normal": false
+          },
+          {
+            "path": "names",
+            "title": "Named elements"
+          },
+          {
+            "path": "names[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "names[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "names[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "names[].identifier",
+            "title": "Identifier"
+          },
+          {
+            "path": "names[].title",
+            "title": "Title"
           }
         ]
       },
@@ -30124,6 +30157,14 @@
             "incomplete": {
               "$ref": "../common.schema.json#/$defs/incomplete",
               "description": "True when an evidence location or the baselines folder lies in a repository that is not on this machine: records or baselines there are not seen."
+            },
+            "names": {
+              "title": "Named elements",
+              "type": "array",
+              "description": "The variants that the output names by UUID only (the `variant` of a record or of an execution of a test case, the `views` of `display`), each once in the order first named, so a reader names them by short ID, identifier and title (as `evidence.status` names its variants). Left out when it names none.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/elementName"
+              }
             }
           },
           "additionalProperties": false,
@@ -30737,6 +30778,31 @@
             "path": "incomplete",
             "title": "Incomplete",
             "normal": false
+          },
+          {
+            "path": "names",
+            "title": "Named elements"
+          },
+          {
+            "path": "names[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "names[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "names[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "names[].identifier",
+            "title": "Identifier"
+          },
+          {
+            "path": "names[].title",
+            "title": "Title"
           }
         ]
       },
@@ -36565,7 +36631,7 @@
             "names": {
               "title": "Named elements",
               "type": "array",
-              "description": "The variant of the baseline's view, as baseline.get names it. Left out in the core.",
+              "description": "The variant of the baseline's view, as baseline.get names it, then the variants the `view` of an outdated evidence hint names, as hint.list names them; each once. Left out when it names none.",
               "items": {
                 "$ref": "../common.schema.json#/$defs/elementName"
               }

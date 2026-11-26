@@ -150,6 +150,10 @@ const listSteps = (name: string, baseline: BaselineSince): NextStep[] =>
         ];
   });
 
+/** `names` with each UUID once, the first entry kept (as baseline.prepare merges its names). */
+const uniqueNames = <T extends { readonly id: string }>(names: readonly T[]): T[] =>
+  names.filter((name, i) => names.findIndex((other) => other.id === name.id) === i);
+
 /** How baseline.compare and the other steps name the baseline: by the text baseline.get found it with. */
 const nextSteps = (
   ref: string | undefined,
@@ -194,7 +198,7 @@ const changesOf = async (
     ...(problems.length === 0 ? {} : { problems }),
     next: nextSteps(ref, baseline, hints, list),
     ...(incomplete ? { incomplete: true } : {}),
-    ...namesField(got === undefined ? [] : viewNames(got)),
+    ...namesField(uniqueNames([...(got === undefined ? [] : viewNames(got)), ...(hints.names ?? [])])),
   };
 };
 

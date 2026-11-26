@@ -238,6 +238,29 @@ describe("baseline.changes", () => {
     expect([out.baseline?.view, out.names?.map((n) => n.id)]).toEqual([`${ID}c1`, [`${ID}c1`]]);
   });
 
+  it("names the variants of the outdated evidence hints after the baseline's view, each once (#2527)", async () => {
+    const ws = await fixture();
+    // B3 applies in C2 and has a record there of an older version.
+    await ws.write(
+      "system/evidence/b3-c2.md",
+      `---\nreqseq-record: 1\nkind: verification\nelement: ${ID}b3\nversion: n1:0000000000000000\nmethod: test\nitem: build-41\n` +
+        `variant: ${ID}c2\nresult: passed\ndate: 2026-11-02T12:00:00Z\n---\n`,
+    );
+    const over = async (view: string): Promise<unknown> => {
+      await ws.write(
+        "system/baselines/coast.yaml",
+        baseline("Coast 1", "2026-11-09T10:00:00Z", await ws.head("system"), `  view: ${ID}${view}`),
+      );
+      const out = await call(ws, "baseline.changes", {});
+      return [
+        out.hints.filter((h) => h.code === "evidence.outdated").map((h) => h.view),
+        out.names?.map((n) => n.id),
+      ];
+    };
+    expect(await over("c1")).toEqual([[`${ID}c2`], [`${ID}c1`, `${ID}c2`]]);
+    expect(await over("c2")).toEqual([[`${ID}c2`], [`${ID}c2`]]);
+  });
+
   it("[SR-241/AK-rnfc] lists every open hint and the number per kind as hint.list without a filter", async () => {
     const ws = await fixture();
     const out = await call(ws, "baseline.changes", {});

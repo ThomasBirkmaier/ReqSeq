@@ -102,7 +102,7 @@
       "names": {
         "title": "Named elements",
         "type": "array",
-        "description": "The variant of the baseline's view, as baseline.get names it. Left out in the core.",
+        "description": "The variant of the baseline's view, as baseline.get names it, then the variants the `view` of an outdated evidence hint names, as hint.list names them (#2527); each once. Left out when it names none.",
         "items": {
           "$ref": "../common.schema.json#/$defs/elementName"
         }

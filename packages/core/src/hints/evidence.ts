@@ -27,7 +27,10 @@
 //   `elementId` with the element's own repository and file (`elementRepository`, `elementFile`:
 //   `repository` and `file` are the record's, and a UUID may have several copies, SR-088), the
 //   record's version as `storedVersion` and the current one as `currentVersion`, and the view whose
-//   status is outdated as `view` (`core` or the variant's UUID, as the message names it; SR-026).
+//   status is outdated as `view` (`core` or the variant's UUID, a technical field; SR-026). The message
+//   names the variant by its short ID, with its identifier where it has one (`VAR-3c90b0 (VAR-001)`,
+//   SR-224 AK3: UUIDs only in the technical fields, #2527), and by its UUID only when the store does
+//   not hold it.
 //   No hint ID: such a hint is not confirmed, a new record settles it (ADR-0012).
 // - Records of elements that are not in the store, or whose current version is unknown, are left
 //   out (an unknown element is `evidence.unknown-element` of `evidence/match.ts`, SR-028 AK3).
@@ -118,9 +121,27 @@ const newestOf = (records: readonly EvidenceRecord[]): EvidenceRecord | undefine
 const CORE: View = { kind: "core" };
 
 /**
- * The message of an outdated status in the view of `inVariant` (the core: undefined) named by
- * `record`: with `criteria` (the view has a record of the current version) the criteria whose status
- * is outdated (SR-031 AK8), else that the newest record is for an older version.
+ * How the message names a variant by its UUID: by the short ID of its first element in store order,
+ * with its identifier where it has one, as `namesOf` names it; the UUID when the store
+ * does not hold it.
+ */
+export const variantLabelOf =
+  (store: Pick<ElementStore, "byId">, shortIds: ShortIds): ((id: string) => string) =>
+  (id) => {
+    const variant = store.byId.get(id)?.[0];
+    if (variant === undefined) {
+      return id;
+    }
+    // As `shownId` of graph/words.ts, a higher layer (docs/architecture/README.md section 5).
+    const identifier = shortIds.identifierOf(variant)?.trim() ?? "";
+    return identifier === "" ? shortIds.of(variant) : `${shortIds.of(variant)} (${identifier})`;
+  };
+
+/**
+ * The message of an outdated status in the view of `inVariant` (the core: undefined; the variant as
+ * the message names it, `variantLabelOf`) named by `record`: with `criteria` (the view has a record
+ * of the current version) the criteria whose status is outdated (SR-031 AK8), else that the newest
+ * record is for an older version.
  */
 const messageOf = (
   record: EvidenceRecord,
@@ -136,7 +157,7 @@ const messageOf = (
 
 /**
  * The `evidence.outdated` problem of `element` named by its newest older `record` in the view of
- * `variant` (the core: undefined), with the outdated criteria `names` when the view has a record of
+ * `variant` (the core: undefined; named in the message by `variantLabel`), with the outdated criteria `names` when the view has a record of
  * the current `version` (`messageOf`).
  */
 const outdatedProblem = (
@@ -144,12 +165,18 @@ const outdatedProblem = (
   element: ElementRecord,
   label: string,
   variant: string | undefined,
+  variantLabel: (id: string) => string,
   version: VersionForms,
   { names }: { readonly names: readonly DataExportCriterionName[] | undefined },
 ): Problem => ({
   code: "evidence.outdated",
   severity: "warning",
-  message: messageOf(record, label, variant, names?.map(criterionLabel)),
+  message: messageOf(
+    record,
+    label,
+    variant === undefined ? undefined : variantLabel(variant),
+    names?.map(criterionLabel),
+  ),
   ...(record.repository === undefined ? {} : { repository: record.repository }),
   ...(record.file === undefined ? {} : { file: record.file }),
   ...(record.line === undefined ? {} : { line: record.line }),
@@ -168,7 +195,8 @@ const outdatedProblem = (
  * gives for that element (each copy of a UUID against its own, SR-088), the newest record of the
  * group of an older version. `independent` names the elements whose repository is marked
  * `variant-independent` (SR-173), `criteriaOf` gives an element's acceptance criteria (SR-031 AK5
- * to AK8, AK11, AK12; none without).
+ * to AK8, AK11, AK12; none without), `variantLabel` names a variant by its UUID in the message
+ * (`variantLabelOf`; the UUID itself without).
  */
 export const outdatedEvidenceFindings = (
   elements: readonly ElementRecord[],
@@ -177,6 +205,7 @@ export const outdatedEvidenceFindings = (
   label: (element: ElementRecord) => string,
   independent: (element: ElementRecord) => boolean,
   criteriaOf: (element: ElementRecord) => ElementCriteria = () => plainCriteria(0),
+  variantLabel: (id: string) => string = (id) => id,
 ): Problem[] => {
   const byElement = recordGroups(records);
   const problems: Problem[] = [];
@@ -221,7 +250,7 @@ export const outdatedEvidenceFindings = (
         continue;
       }
       problems.push(
-        outdatedProblem(record, element, label(element), group.variant, version, {
+        outdatedProblem(record, element, label(element), group.variant, variantLabel, version, {
           // The criteria named with number, key and text (SR-205 AK2); the message names them by label.
           names: criteria?.map((n) => criterionNameAt(criteriaOfElement.items, n)),
         }),
@@ -253,6 +282,7 @@ export const outdatedEvidenceProblemsState = defineWorkspaceState(
       (element) => elementLabel({ metamodel, shortIds }, element),
       (element) => marked.has(element.repository),
       (element) => elementCriteria(element.id, criteriaItemsOf(element.data, criteriaKey), older),
+      variantLabelOf(versions.store, shortIds),
     );
   },
   {
@@ -329,5 +359,6 @@ export const elementEvidenceFindings = async (
     (r) => elementLabel({ metamodel, shortIds }, r),
     (r) => variantIndependentOf(layout).has(r.repository),
     (r) => elementCriteria(r.id, criteriaItemsOf(r.data, criteriaKey), older),
+    variantLabelOf(store, shortIds),
   ).map(toFinding);
 };

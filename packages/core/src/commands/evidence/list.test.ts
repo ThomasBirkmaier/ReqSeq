@@ -67,6 +67,8 @@ const PASSED = record({
 });
 const COAST = record({ version: V2, item: "coast-7", date: "2026-10-05T08:00:00Z", variant: C1 });
 const OTHER = record({ element: A2, version: V2, item: "build-512" });
+/** The name of C1 that `names` gives (#2527). */
+const COAST_NAME = { id: C1, repository: "system", shortId: "VAR-0032c1", title: "Coast" };
 const RECORDS: readonly EvidenceRecord[] = [INSPECTION, FAILED, PASSED, COAST, OTHER];
 
 const fixture = async (files: Readonly<Record<string, string>> = {}): Promise<FixtureWorkspace> => {
@@ -279,6 +281,22 @@ describe("evidence.list (SR-032)", () => {
     ]);
   });
 
+  it("names the variants its records and views give by UUID, each once, and none without (#2527)", async () => {
+    const workspace = await open(await fixture());
+    // COAST holds for C1 and A1 applies in C1: the record and the views name it, `names` once.
+    expect((await list(workspace, { ref: A1 })).names).toEqual([COAST_NAME]);
+    expect((await list(workspace, { ref: A1, view: "core" })).names).toBeUndefined();
+    // A validation row has no views: it names no variant.
+    const validated = await open(await fixture(), [
+      record({ kind: "validation", version: V3, item: "review-1", date: "2026-10-21T08:00:00Z" }),
+    ]);
+    const output = await list(validated, { ref: A1, view: "core" });
+    expect([output.display.rows.at(-1)?.kind, output.names]).toEqual(["validation", undefined]);
+    // C1 is no requirement: it has records but no verification row, so no view names a variant.
+    const onVariant = await open(await fixture(), [record({ element: C1, item: "on-the-variant" })]);
+    expect((await list(onVariant, { ref: C1 })).names).toBeUndefined();
+  });
+
   it("refuses an element that does not exist", async () => {
     const workspace = await open(await fixture());
     expect((await listError(workspace, { ref: "SR-ffffff" })).code).toBe("ref.unknown");
@@ -305,6 +323,8 @@ describe("evidence.list (SR-032)", () => {
       testCases: [],
       problems: [],
       incomplete: true,
+      // The variant of A2's views ("names the variants" below).
+      names: [COAST_NAME],
     });
     const ws = await fixture({
       "reqseq-workspace.yaml": `${vault}evidence:\n  - { repository: vault, path: evidence }\n`,
@@ -325,6 +345,8 @@ describe("evidence.list (SR-032)", () => {
       testCases: [],
       problems: [],
       incomplete: true,
+      // The variant of A2's views ("names the variants" below).
+      names: [COAST_NAME],
     });
   });
 });

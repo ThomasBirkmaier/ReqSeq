@@ -657,6 +657,38 @@ describe("renderHuman: values", () => {
     );
   });
 
+  it("names the variant of an outdated evidence view from `names`, else by UUID (#2527)", () => {
+    const hint = {
+      code: "evidence.outdated",
+      severity: "warning",
+      message: "Outdated",
+      file: "e.md",
+      elementShortId: "SR-b2",
+      elementTitle: "Warn of storms",
+    };
+    const names = [
+      { id: "u-v1", repository: "system", shortId: "VAR-v1", identifier: "VAR-001", title: "Coast" },
+    ];
+    expect(
+      renderHuman({
+        hints: [
+          { ...hint, view: "u-v1" },
+          { ...hint, view: "u-v9" },
+        ],
+        total: 2,
+        incomplete: false,
+        names,
+      }),
+    ).toBe(
+      lines(
+        "hints:",
+        "  SR-b2  Warn of storms  evidence.outdated  Outdated  view: VAR-v1 (VAR-001)",
+        "  SR-b2  Warn of storms  evidence.outdated  Outdated  view: u-v9",
+        "total: 2",
+      ),
+    );
+  });
+
   it("notes a page of hints shorter than total (#146)", () => {
     const hint = { code: "element.unknown-property", severity: "warning", message: "Unknown", file: "b.md" };
     expect(renderHuman({ hints: [hint], total: 3, incomplete: false })).toContain(
